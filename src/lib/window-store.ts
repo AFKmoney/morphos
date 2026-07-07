@@ -9,7 +9,7 @@ export type ModuleType =
   | "calculator" | "stock" | "camera" | "metrics"
   | "pomodoro" | "paint" | "regex" | "json" | "colorpicker"
   | "qr" | "devtools" | "files" | "browser" | "calendar"
-  | "whiteboard" | "custom";
+  | "whiteboard" | "custom" | "imagegen";
 
 export interface MorphWindow {
   id: string;

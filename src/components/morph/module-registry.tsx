@@ -6,7 +6,7 @@ import {
   MessageSquare, Activity, BarChart3, TerminalSquare, KanbanSquare,
   FileText, Code2, CloudSun, Clock, Music4, Calculator, TrendingUp,
   Camera, Gauge, Timer, Brush, Regex, Braces, Palette, QrCode,
-  Wrench, FolderTree, Globe, CalendarDays, PenTool, Sparkles,
+  Wrench, FolderTree, Globe, CalendarDays, PenTool, Sparkles, ImageIcon,
 } from "lucide-react";
 
 const loadingFallback = () => (
@@ -47,6 +47,7 @@ const lazyComponents: Record<string, React.LazyExoticComponent<React.ComponentTy
   CalendarModule: dynamic(() => modulesPromise.then(m => ({ default: m.CalendarModule })), { loading: loadingFallback }),
   WhiteboardModule: dynamic(() => modulesPromise.then(m => ({ default: m.WhiteboardModule })), { loading: loadingFallback }),
   CustomModuleRenderer: dynamic(() => modulesPromise.then(m => ({ default: m.CustomModuleRenderer })), { loading: loadingFallback }),
+  ImageGenModule: dynamic(() => modulesPromise.then(m => ({ default: m.ImageGenModule })), { loading: loadingFallback }),
 };
 
 export interface ModuleMeta {
@@ -86,6 +87,7 @@ const MODULE_KEY_MAP: Record<ModuleType, string> = {
   calendar: "CalendarModule",
   whiteboard: "WhiteboardModule",
   custom: "CustomModuleRenderer",
+  imagegen: "ImageGenModule",
 };
 
 const INFO_MAP: Record<ModuleType, Omit<ModuleMeta, "component">> = {
@@ -115,6 +117,7 @@ const INFO_MAP: Record<ModuleType, Omit<ModuleMeta, "component">> = {
   calendar: { type: "calendar", label: "Calendar", description: "Month view + events", icon: CalendarDays, accent: "#f472b6" },
   whiteboard: { type: "whiteboard", label: "Whiteboard", description: "Freehand drawing SVG", icon: PenTool, accent: "#c084fc" },
   custom: { type: "custom", label: "Custom AI", description: "AI-generated module", icon: Sparkles, accent: "#22d3ee", custom: true },
+  imagegen: { type: "imagegen", label: "Image Gen", description: "AI image generation", icon: ImageIcon, accent: "#f472b6" },
 };
 
 export function getModuleMeta(type: ModuleType): ModuleMeta {

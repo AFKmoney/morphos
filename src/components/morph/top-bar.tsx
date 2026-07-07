@@ -36,6 +36,7 @@ const MODULE_SIZES: Record<string, { width: number; height: number }> = {
   browser: { width: 720, height: 560 },
   calendar: { width: 380, height: 480 },
   whiteboard: { width: 580, height: 480 },
+  imagegen: { width: 420, height: 560 },
 };
 
 function getDefaultSize(type: string) {

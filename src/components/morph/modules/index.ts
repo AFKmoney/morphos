@@ -20,3 +20,4 @@ export { CustomModuleRenderer } from "./custom-module";
 // All extra modules from single file (reduces Turbopack memory)
 export { PomodoroModule, PaintModule, RegexModule, JsonModule, ColorPickerModule, QrModule, DevtoolsModule, BrowserModule, CalendarModule, WhiteboardModule } from "./extra-modules";
 export { FilesModule } from "./files-module";
+export { ImageGenModule } from "./imagegen-module";

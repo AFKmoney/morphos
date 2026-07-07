@@ -4,11 +4,12 @@ import { useRef, useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useWindowStore } from "@/lib/window-store";
 import { getModuleMeta } from "./module-registry";
-import { Sparkles, Send, X, Layers, Zap, Hexagon, ChevronUp } from "lucide-react";
+import { Sparkles, Send, X, Layers, Zap, Hexagon, ChevronUp, Mic, MicOff } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/use-t";
 import { useSettings, buildProviderPayload } from "@/lib/settings-store";
 import { useAIContext } from "@/lib/ai-context-store";
+import { useVoiceInput } from "@/lib/use-voice-input";
 
 const MODULE_SIZES: Record<string, { width: number; height: number }> = {
   chat: { width: 460, height: 560 },
@@ -37,6 +38,7 @@ const MODULE_SIZES: Record<string, { width: number; height: number }> = {
   calendar: { width: 380, height: 480 },
   whiteboard: { width: 580, height: 480 },
   custom: { width: 460, height: 420 },
+  imagegen: { width: 420, height: 560 },
 };
 
 function getDefaultSize(type: string) {
@@ -65,6 +67,14 @@ export function CommandDock() {
 
   const [input, setInput] = useState("");
   const taRef = useRef<HTMLTextAreaElement>(null);
+
+  // Voice input
+  const { listening, supported: voiceSupported, toggle: toggleVoice } = useVoiceInput((text) => {
+    setInput(text);
+    if (taRef.current) {
+      taRef.current.focus();
+    }
+  });
 
   // Hover-to-reveal state
   const [dockVisible, setDockVisible] = useState(false);
@@ -114,7 +124,9 @@ export function CommandDock() {
       const history = chatMessages
         .filter((m) => m.role !== "system")
         .map((m) => ({ role: m.role, content: m.content }));
-      const res = await fetch("/api/interpret", {
+
+      // Use streaming SSE endpoint
+      const res = await fetch("/api/interpret-stream", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -129,7 +141,46 @@ export function CommandDock() {
           memory: aiMemory,
         }),
       });
-      const data = await res.json();
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        addChatMessage({ role: "assistant", content: `⚠️ ${errData.error || "Request failed"}` });
+        setInterpreting(false);
+        return;
+      }
+
+      // Read SSE stream
+      const reader = res.body?.getReader();
+      const decoder = new TextDecoder();
+      let streamedText = "";
+      let finalData: any = null;
+
+      if (reader) {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          const chunk = decoder.decode(value, { stream: true });
+          const lines = chunk.split("\n");
+          for (const line of lines) {
+            if (line.startsWith("data: ")) {
+              try {
+                const msg = JSON.parse(line.slice(6));
+                if (msg.type === "delta") {
+                  streamedText += msg.content;
+                } else if (msg.type === "done") {
+                  finalData = msg.result;
+                } else if (msg.type === "error") {
+                  addChatMessage({ role: "assistant", content: `⚠️ ${msg.error}` });
+                  setInterpreting(false);
+                  return;
+                }
+              } catch {}
+            }
+          }
+        }
+      }
+
+      const data = finalData;
 
       if (data.error) {
         addChatMessage({ role: "assistant", content: `⚠️ ${data.error}` });
@@ -347,6 +398,20 @@ export function CommandDock() {
                 className="flex-1 bg-transparent text-sm text-white placeholder:text-white/40 outline-none resize-none py-1.5 min-h-[36px] max-h-[80px] thin-scroll"
                 spellCheck={false}
               />
+              {voiceSupported && (
+                <button
+                  onClick={toggleVoice}
+                  className={cn(
+                    "w-8 h-8 rounded-full flex items-center justify-center shrink-0 transition",
+                    listening
+                      ? "bg-rose-500/30 text-rose-300 animate-pulse"
+                      : "bg-white/5 text-white/60 hover:text-white"
+                  )}
+                  title={listening ? "Stop recording" : "Voice input"}
+                >
+                  {listening ? <MicOff className="w-3.5 h-3.5" /> : <Mic className="w-3.5 h-3.5" />}
+                </button>
+              )}
               <button
                 onClick={send}
                 disabled={!input.trim() || isInterpreting}

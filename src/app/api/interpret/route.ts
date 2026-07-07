@@ -9,7 +9,7 @@ export type ModuleType =
   | "calculator" | "stock" | "camera" | "metrics"
   | "pomodoro" | "paint" | "regex" | "json" | "colorpicker"
   | "qr" | "devtools" | "files" | "browser" | "calendar"
-  | "whiteboard" | "custom";
+  | "whiteboard" | "custom" | "imagegen";
 
 export interface InterpretResult {
   moduleType: ModuleType;
@@ -395,12 +395,12 @@ export async function POST(req: NextRequest) {
             "chat","monitor","dashboard","terminal","kanban","notes","code",
             "weather","clock","music","calculator","stock","camera","metrics",
             "pomodoro","paint","regex","json","colorpicker","qr","devtools",
-            "files","browser","calendar","whiteboard","custom"
+            "files","browser","calendar","whiteboard","custom","imagegen"
           ];
           let moduleType = (allowed.includes(obj.moduleType) ? obj.moduleType : "chat") as ModuleType;
 
           // Redirect unsupported module types to custom (they'll be AI-generated)
-          const supportedTypes: ModuleType[] = ["chat","monitor","dashboard","terminal","kanban","notes","code","weather","clock","music","calculator","stock","camera","metrics","custom"];
+          const supportedTypes: ModuleType[] = ["chat","monitor","dashboard","terminal","kanban","notes","code","weather","clock","music","calculator","stock","camera","metrics","custom","imagegen"];
           if (!supportedTypes.includes(moduleType)) {
             // Convert to custom with the original request as prompt
             const customPrompt = obj.prompt || prompt;
