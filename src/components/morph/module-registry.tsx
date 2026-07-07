@@ -5,7 +5,8 @@ import dynamic from "next/dynamic";
 import {
   MessageSquare, Activity, BarChart3, TerminalSquare, KanbanSquare,
   FileText, Code2, CloudSun, Clock, Music4, Calculator, TrendingUp,
-  Camera, Gauge, Sparkles,
+  Camera, Gauge, Timer, Brush, Regex, Braces, Palette, QrCode,
+  Wrench, FolderTree, Globe, CalendarDays, PenTool, Sparkles,
 } from "lucide-react";
 
 const loadingFallback = () => (
@@ -15,24 +16,38 @@ const loadingFallback = () => (
   </div>
 );
 
-// Core 14 modules + custom AI module = 15 total
-const ChatModule = dynamic(() => import("./modules/chat-module").then(m => ({ default: m.ChatModule })), { loading: loadingFallback });
-const MonitorModule = dynamic(() => import("./modules/monitor-module").then(m => ({ default: m.MonitorModule })), { loading: loadingFallback });
-const DashboardModule = dynamic(() => import("./modules/dashboard-module").then(m => ({ default: m.DashboardModule })), { loading: loadingFallback });
-const TerminalModule = dynamic(() => import("./modules/terminal-module").then(m => ({ default: m.TerminalModule })), { loading: loadingFallback });
-const KanbanModule = dynamic(() => import("./modules/kanban-module").then(m => ({ default: m.KanbanModule })), { loading: loadingFallback });
-const NotesModule = dynamic(() => import("./modules/notes-module").then(m => ({ default: m.NotesModule })), { loading: loadingFallback });
-const CodeModule = dynamic(() => import("./modules/code-module").then(m => ({ default: m.CodeModule })), { loading: loadingFallback });
-const WeatherModule = dynamic(() => import("./modules/weather-module").then(m => ({ default: m.WeatherModule })), { loading: loadingFallback });
-const ClockModule = dynamic(() => import("./modules/clock-module").then(m => ({ default: m.ClockModule })), { loading: loadingFallback });
-const MusicModule = dynamic(() => import("./modules/music-module").then(m => ({ default: m.MusicModule })), { loading: loadingFallback });
-const CalculatorModule = dynamic(() => import("./modules/calculator-module").then(m => ({ default: m.CalculatorModule })), { loading: loadingFallback });
-const StockModule = dynamic(() => import("./modules/stock-module").then(m => ({ default: m.StockModule })), { loading: loadingFallback });
-const CameraModule = dynamic(() => import("./modules/camera-module").then(m => ({ default: m.CameraModule })), { loading: loadingFallback });
-const MetricsModule = dynamic(() => import("./modules/metrics-module").then(m => ({ default: m.MetricsModule })), { loading: loadingFallback });
+// Single dynamic import for ALL modules via barrel file
+// This reduces Turbopack memory usage by creating one chunk instead of 26
+const modulesPromise = import("./modules");
 
-// Custom AI module — uses Babel from CDN to compile AI-generated React code at runtime
-const CustomModuleRenderer = dynamic(() => import("./modules/custom-renderer").then(m => ({ default: m.CustomModuleRenderer })), { loading: loadingFallback });
+const lazyComponents: Record<string, React.LazyExoticComponent<React.ComponentType<{ windowId?: string; code?: string }>>> = {
+  ChatModule: dynamic(() => modulesPromise.then(m => ({ default: m.ChatModule })), { loading: loadingFallback }),
+  MonitorModule: dynamic(() => modulesPromise.then(m => ({ default: m.MonitorModule })), { loading: loadingFallback }),
+  DashboardModule: dynamic(() => modulesPromise.then(m => ({ default: m.DashboardModule })), { loading: loadingFallback }),
+  TerminalModule: dynamic(() => modulesPromise.then(m => ({ default: m.TerminalModule })), { loading: loadingFallback }),
+  KanbanModule: dynamic(() => modulesPromise.then(m => ({ default: m.KanbanModule })), { loading: loadingFallback }),
+  NotesModule: dynamic(() => modulesPromise.then(m => ({ default: m.NotesModule })), { loading: loadingFallback }),
+  CodeModule: dynamic(() => modulesPromise.then(m => ({ default: m.CodeModule })), { loading: loadingFallback }),
+  WeatherModule: dynamic(() => modulesPromise.then(m => ({ default: m.WeatherModule })), { loading: loadingFallback }),
+  ClockModule: dynamic(() => modulesPromise.then(m => ({ default: m.ClockModule })), { loading: loadingFallback }),
+  MusicModule: dynamic(() => modulesPromise.then(m => ({ default: m.MusicModule })), { loading: loadingFallback }),
+  CalculatorModule: dynamic(() => modulesPromise.then(m => ({ default: m.CalculatorModule })), { loading: loadingFallback }),
+  StockModule: dynamic(() => modulesPromise.then(m => ({ default: m.StockModule })), { loading: loadingFallback }),
+  CameraModule: dynamic(() => modulesPromise.then(m => ({ default: m.CameraModule })), { loading: loadingFallback }),
+  MetricsModule: dynamic(() => modulesPromise.then(m => ({ default: m.MetricsModule })), { loading: loadingFallback }),
+  PomodoroModule: dynamic(() => modulesPromise.then(m => ({ default: m.PomodoroModule })), { loading: loadingFallback }),
+  PaintModule: dynamic(() => modulesPromise.then(m => ({ default: m.PaintModule })), { loading: loadingFallback }),
+  RegexModule: dynamic(() => modulesPromise.then(m => ({ default: m.RegexModule })), { loading: loadingFallback }),
+  JsonModule: dynamic(() => modulesPromise.then(m => ({ default: m.JsonModule })), { loading: loadingFallback }),
+  ColorPickerModule: dynamic(() => modulesPromise.then(m => ({ default: m.ColorPickerModule })), { loading: loadingFallback }),
+  QrModule: dynamic(() => modulesPromise.then(m => ({ default: m.QrModule })), { loading: loadingFallback }),
+  DevtoolsModule: dynamic(() => modulesPromise.then(m => ({ default: m.DevtoolsModule })), { loading: loadingFallback }),
+  FilesModule: dynamic(() => modulesPromise.then(m => ({ default: m.FilesModule })), { loading: loadingFallback }),
+  BrowserModule: dynamic(() => modulesPromise.then(m => ({ default: m.BrowserModule })), { loading: loadingFallback }),
+  CalendarModule: dynamic(() => modulesPromise.then(m => ({ default: m.CalendarModule })), { loading: loadingFallback }),
+  WhiteboardModule: dynamic(() => modulesPromise.then(m => ({ default: m.WhiteboardModule })), { loading: loadingFallback }),
+  CustomModuleRenderer: dynamic(() => modulesPromise.then(m => ({ default: m.CustomModuleRenderer })), { loading: loadingFallback }),
+};
 
 export interface ModuleMeta {
   type: ModuleType;
@@ -44,22 +59,33 @@ export interface ModuleMeta {
   custom?: boolean;
 }
 
-const COMPONENT_MAP: Partial<Record<ModuleType, React.ComponentType<{ windowId?: string; code?: string }>>> = {
-  chat: ChatModule,
-  monitor: MonitorModule,
-  dashboard: DashboardModule,
-  terminal: TerminalModule,
-  kanban: KanbanModule,
-  notes: NotesModule,
-  code: CodeModule,
-  weather: WeatherModule,
-  clock: ClockModule,
-  music: MusicModule,
-  calculator: CalculatorModule,
-  stock: StockModule,
-  camera: CameraModule,
-  metrics: MetricsModule,
-  custom: CustomModuleRenderer,
+const MODULE_KEY_MAP: Record<ModuleType, string> = {
+  chat: "ChatModule",
+  monitor: "MonitorModule",
+  dashboard: "DashboardModule",
+  terminal: "TerminalModule",
+  kanban: "KanbanModule",
+  notes: "NotesModule",
+  code: "CodeModule",
+  weather: "WeatherModule",
+  clock: "ClockModule",
+  music: "MusicModule",
+  calculator: "CalculatorModule",
+  stock: "StockModule",
+  camera: "CameraModule",
+  metrics: "MetricsModule",
+  pomodoro: "PomodoroModule",
+  paint: "PaintModule",
+  regex: "RegexModule",
+  json: "JsonModule",
+  colorpicker: "ColorPickerModule",
+  qr: "QrModule",
+  devtools: "DevtoolsModule",
+  files: "FilesModule",
+  browser: "BrowserModule",
+  calendar: "CalendarModule",
+  whiteboard: "WhiteboardModule",
+  custom: "CustomModuleRenderer",
 };
 
 const INFO_MAP: Record<ModuleType, Omit<ModuleMeta, "component">> = {
@@ -77,26 +103,26 @@ const INFO_MAP: Record<ModuleType, Omit<ModuleMeta, "component">> = {
   stock: { type: "stock", label: "Stock", description: "Live ticker (mock)", icon: TrendingUp, accent: "#34d399" },
   camera: { type: "camera", label: "Camera", description: "Webcam + HUD", icon: Camera, accent: "#22d3ee" },
   metrics: { type: "metrics", label: "Metrics", description: "Real-time Grafana-style", icon: Gauge, accent: "#fbbf24" },
-  // These types are redirected to "custom" at the API level (AI generates them on the fly)
-  pomodoro: { type: "pomodoro", label: "Pomodoro", description: "Focus timer (AI-generated)", icon: Sparkles, accent: "#22d3ee" },
-  paint: { type: "paint", label: "Paint", description: "Drawing canvas (AI-generated)", icon: Sparkles, accent: "#f472b6" },
-  regex: { type: "regex", label: "Regex", description: "Pattern tester (AI-generated)", icon: Sparkles, accent: "#c084fc" },
-  json: { type: "json", label: "JSON", description: "Formatter (AI-generated)", icon: Sparkles, accent: "#34d399" },
-  colorpicker: { type: "colorpicker", label: "Color Picker", description: "HEX/RGB/HSL (AI-generated)", icon: Sparkles, accent: "#f472b6" },
-  qr: { type: "qr", label: "QR Code", description: "Generator (AI-generated)", icon: Sparkles, accent: "#22d3ee" },
-  devtools: { type: "devtools", label: "Dev Tools", description: "Base64 · Hash · UUID (AI-generated)", icon: Sparkles, accent: "#fbbf24" },
-  files: { type: "files", label: "Files", description: "File explorer (AI-generated)", icon: Sparkles, accent: "#34d399" },
-  browser: { type: "browser", label: "Browser", description: "Web viewer (AI-generated)", icon: Sparkles, accent: "#22d3ee" },
-  calendar: { type: "calendar", label: "Calendar", description: "Month view (AI-generated)", icon: Sparkles, accent: "#f472b6" },
-  whiteboard: { type: "whiteboard", label: "Whiteboard", description: "Drawing SVG (AI-generated)", icon: Sparkles, accent: "#c084fc" },
+  pomodoro: { type: "pomodoro", label: "Pomodoro", description: "Focus timer", icon: Timer, accent: "#22d3ee" },
+  paint: { type: "paint", label: "Paint", description: "Drawing canvas", icon: Brush, accent: "#f472b6" },
+  regex: { type: "regex", label: "Regex", description: "Pattern tester", icon: Regex, accent: "#c084fc" },
+  json: { type: "json", label: "JSON", description: "Formatter & minifier", icon: Braces, accent: "#34d399" },
+  colorpicker: { type: "colorpicker", label: "Color Picker", description: "HEX/RGB/HSL + harmonies", icon: Palette, accent: "#f472b6" },
+  qr: { type: "qr", label: "QR Code", description: "Generator (visual)", icon: QrCode, accent: "#22d3ee" },
+  devtools: { type: "devtools", label: "Dev Tools", description: "Base64 · Hash · UUID · Hex", icon: Wrench, accent: "#fbbf24" },
+  files: { type: "files", label: "Files", description: "Virtual file explorer", icon: FolderTree, accent: "#34d399" },
+  browser: { type: "browser", label: "Browser", description: "Web viewer (iframe)", icon: Globe, accent: "#22d3ee" },
+  calendar: { type: "calendar", label: "Calendar", description: "Month view + events", icon: CalendarDays, accent: "#f472b6" },
+  whiteboard: { type: "whiteboard", label: "Whiteboard", description: "Freehand drawing SVG", icon: PenTool, accent: "#c084fc" },
   custom: { type: "custom", label: "Custom AI", description: "AI-generated module", icon: Sparkles, accent: "#22d3ee", custom: true },
 };
 
 export function getModuleMeta(type: ModuleType): ModuleMeta {
   const info = INFO_MAP[type] ?? INFO_MAP.chat;
+  const key = MODULE_KEY_MAP[type] ?? "ChatModule";
   return {
     ...info,
-    component: COMPONENT_MAP[type] ?? COMPONENT_MAP.chat!,
+    component: lazyComponents[key] ?? lazyComponents.ChatModule,
   };
 }
 
@@ -107,8 +133,5 @@ export function getModuleInfo(type: ModuleType): Omit<ModuleMeta, "component"> {
 export const MODULE_LIST: Omit<ModuleMeta, "component">[] = Object.values(INFO_MAP);
 
 export const MODULE_REGISTRY: Record<ModuleType, ModuleMeta> = Object.fromEntries(
-  Object.entries(INFO_MAP).map(([type, info]) => [
-    type,
-    { ...info, component: COMPONENT_MAP[type as ModuleType] ?? COMPONENT_MAP.chat! },
-  ])
+  Object.entries(INFO_MAP).map(([type, info]) => [type, getModuleMeta(type as ModuleType)])
 ) as Record<ModuleType, ModuleMeta>;
