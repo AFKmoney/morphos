@@ -1,10 +1,47 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useT } from "@/lib/use-t";
+import { useSettings } from "@/lib/settings-store";
 
 interface Line { kind: "in" | "out" | "sys"; text: string; }
 
-const HELP = `Commandes disponibles:
+export function TerminalModule() {
+  const t = useT();
+  const language = useSettings((s) => s.language);
+  const [lines, setLines] = useState<Line[]>([
+    { kind: "sys", text: t("terminal.welcome") },
+    { kind: "sys", text: t("terminal.hotreload") },
+  ]);
+  const [input, setInput] = useState("");
+  const [history, setHistory] = useState<string[]>([]);
+  const [hIdx, setHIdx] = useState(-1);
+  const bottomRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // No effect needed — welcome lines are set at first render via useState initializer
+
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [lines]);
+
+  function push(...newLines: Line[]) {
+    setLines((prev) => [...prev, ...newLines]);
+  }
+
+  const HELP_EN = `Available commands:
+  help              this help
+  ls                list mounted modules
+  spawn <module>    spawn a module (chat, monitor, dashboard…)
+  ps                active processes
+  whoami            identity
+  date              date and time
+  echo <text>       echo text
+  morph --status    morph-engine status
+  clear             clear screen`;
+
+  const HELP_FR = `Commandes disponibles:
   help              cette aide
   ls                liste les modules montés
   spawn <module>    fait apparaître un module (chat, monitor, dashboard…)
@@ -15,26 +52,7 @@ const HELP = `Commandes disponibles:
   morph --status    état du moteur MorphOS
   clear             efface l'écran`;
 
-const FAKE_FS = ["chat.tsx", "monitor.tsx", "dashboard.tsx", "terminal.tsx", "kanban.tsx", "notes.tsx", "code.tsx", "weather.tsx", "clock.tsx", "music.tsx", "calculator.tsx", "stock.tsx", "camera.tsx", "metrics.tsx"];
-
-export function TerminalModule() {
-  const [lines, setLines] = useState<Line[]>([
-    { kind: "sys", text: "MorphOS shell v0.9.4 — type 'help' for commands" },
-    { kind: "sys", text: "hot-reload active · hot-swap ready" },
-  ]);
-  const [input, setInput] = useState("");
-  const [history, setHistory] = useState<string[]>([]);
-  const [hIdx, setHIdx] = useState(-1);
-  const bottomRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [lines]);
-
-  function push(...newLines: Line[]) {
-    setLines((prev) => [...prev, ...newLines]);
-  }
+  const FAKE_FS = ["chat.tsx", "monitor.tsx", "dashboard.tsx", "terminal.tsx", "kanban.tsx", "notes.tsx", "code.tsx", "weather.tsx", "clock.tsx", "music.tsx", "calculator.tsx", "stock.tsx", "camera.tsx", "metrics.tsx"];
 
   function exec(cmd: string) {
     const trimmed = cmd.trim();
@@ -44,9 +62,10 @@ export function TerminalModule() {
     setHIdx(-1);
 
     const [name, ...args] = trimmed.split(/\s+/);
+    const langCode = language;
     switch (name) {
       case "help":
-        push({ kind: "out", text: HELP });
+        push({ kind: "out", text: langCode === "fr" ? HELP_FR : HELP_EN });
         break;
       case "ls":
         push({ kind: "out", text: FAKE_FS.join("  ") });
@@ -88,13 +107,13 @@ export function TerminalModule() {
       case "spawn":
         if (args[0]) {
           push({ kind: "sys", text: `→ requesting morph-engine to spawn: ${args[0]}` });
-          push({ kind: "sys", text: `→ use the chat bar (bottom) for natural language spawn` });
+          push({ kind: "sys", text: t("terminal.spawnHint") });
         } else {
           push({ kind: "out", text: "usage: spawn <module>" });
         }
         break;
       default:
-        push({ kind: "out", text: `command not found: ${name} — try 'help'` });
+        push({ kind: "out", text: t("terminal.notfound", { cmd: name }) });
     }
   }
 
@@ -144,7 +163,7 @@ export function TerminalModule() {
       ))}
       <div className="flex items-center text-cyan-300">
         <span className="text-emerald-400">▸</span>
-        <span className="text-white/40 mx-1">operator@morphos:~$</span>
+        <span className="text-white/40 mx-1">{t("terminal.prompt")}</span>
         <input
           ref={inputRef}
           value={input}

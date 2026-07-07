@@ -4,15 +4,46 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useWindowStore } from "@/lib/window-store";
 import { MODULE_REGISTRY, getModuleMeta } from "./module-registry";
-import { Hexagon, Grid3x3, X, Plus, Activity } from "lucide-react";
+import { Hexagon, Grid3x3, X, Plus, Activity, Settings, Globe, Cpu } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/use-t";
+import { useSettings } from "@/lib/settings-store";
+import { PROVIDERS } from "@/lib/providers";
+
+const MODULE_SIZES: Record<string, { width: number; height: number }> = {
+  chat: { width: 460, height: 560 },
+  monitor: { width: 540, height: 420 },
+  dashboard: { width: 720, height: 480 },
+  terminal: { width: 600, height: 380 },
+  kanban: { width: 680, height: 460 },
+  notes: { width: 480, height: 460 },
+  code: { width: 680, height: 480 },
+  weather: { width: 380, height: 460 },
+  clock: { width: 360, height: 240 },
+  music: { width: 420, height: 480 },
+  calculator: { width: 320, height: 440 },
+  stock: { width: 540, height: 380 },
+  camera: { width: 480, height: 420 },
+  metrics: { width: 560, height: 380 },
+};
+
+function getDefaultSize(type: string) {
+  return MODULE_SIZES[type] ?? { width: 480, height: 400 };
+}
 
 export function TopBar() {
+  const t = useT();
   const [paletteOpen, setPaletteOpen] = useState(false);
   const windows = useWindowStore((s) => s.windows);
   const spawnWindow = useWindowStore((s) => s.spawnWindow);
   const closeAll = useWindowStore((s) => s.closeAll);
   const isInterpreting = useWindowStore((s) => s.isInterpreting);
+
+  const providerId = useSettings((s) => s.providerId);
+  const language = useSettings((s) => s.language);
+  const toggleLanguage = useSettings((s) => s.toggleLanguage);
+  const openSettings = useSettings((s) => s.openSettings);
+  const providerCfg = PROVIDERS[providerId];
 
   function quickSpawn(type: keyof typeof MODULE_REGISTRY) {
     const meta = getModuleMeta(type);
@@ -20,15 +51,15 @@ export function TopBar() {
     const offset = windows.length;
     const col = offset % 3;
     const row = Math.floor(offset / 3) % 2;
-    const vw = typeof window !== "undefined" ? window.innerWidth : 1280;
-    const vh = typeof window !== "undefined" ? window.innerHeight : 800;
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
     const colWidth = Math.min(420, Math.max(280, Math.floor((vw - 80) / 3)));
     const baseX = 60 + col * (colWidth + 30);
     const baseY = 80 + row * 220;
     spawnWindow({
       type,
-      title: meta.label,
-      subtitle: meta.description,
+      title: t(`module.${type}`),
+      subtitle: t(`module.${type}.desc`),
       x: Math.max(20, Math.min(vw - def.width - 20, baseX)),
       y: Math.max(60, Math.min(vh - def.height - 100, baseY)),
       width: def.width,
@@ -36,6 +67,10 @@ export function TopBar() {
     });
     setPaletteOpen(false);
   }
+
+  const moduleLabel = windows.length === 1
+    ? t("topbar.moduleCount", { count: windows.length })
+    : t("topbar.moduleCountPlural", { count: windows.length });
 
   return (
     <>
@@ -49,25 +84,47 @@ export function TopBar() {
           </div>
           <div>
             <div className="text-sm font-semibold text-white tracking-tight leading-none">
-              MorphOS
+              Morph<span className="text-cyan-400">OS</span>
             </div>
-            <div className="text-[9px] text-white/40 leading-none mt-0.5">
-              self-writing interface · v0.9.4
+            <div className="text-[9px] text-white/40 leading-none mt-0.5 font-mono">
+              {t("app.subtitle")}
             </div>
           </div>
         </div>
 
+        {/* Provider badge */}
+        <button
+          onClick={openSettings}
+          className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-black/30 border border-white/8 hover:border-white/20 transition group"
+          title={`${providerCfg.label} · click to change`}
+        >
+          <span
+            className="w-1.5 h-1.5 rounded-full badge-pulse"
+            style={{ background: providerCfg.accent, boxShadow: `0 0 6px ${providerCfg.accent}` }}
+          />
+          <span className="text-[10px] text-white/70 font-mono hidden sm:inline">{providerCfg.label}</span>
+          <Cpu className="w-2.5 h-2.5 text-white/40 group-hover:text-white/70" />
+        </button>
+
         <div className="flex-1 flex items-center justify-center gap-2">
-          <span className="text-[10px] text-white/40 font-mono">
-            {windows.length} module{windows.length > 1 ? "s" : ""} monté{windows.length > 1 ? "s" : ""}
-          </span>
+          <span className="text-[10px] text-white/40 font-mono">{moduleLabel}</span>
           {isInterpreting && (
             <span className="text-[10px] text-cyan-300 font-mono flex items-center gap-1">
               <Activity className="w-2.5 h-2.5 animate-pulse" />
-              écriture en cours
+              {t("topbar.writing")}
             </span>
           )}
         </div>
+
+        {/* Language toggle */}
+        <button
+          onClick={toggleLanguage}
+          className="flex items-center gap-1.5 px-2 py-1 rounded-md text-white/60 hover:text-white hover:bg-white/5 transition"
+          title={t("topbar.language")}
+        >
+          <Globe className="w-3 h-3" />
+          <span className="text-[10px] font-mono uppercase">{language}</span>
+        </button>
 
         <div className="flex items-center gap-1">
           <button
@@ -75,7 +132,14 @@ export function TopBar() {
             className="text-[11px] px-2.5 py-1.5 rounded-md bg-cyan-500/15 border border-cyan-400/30 text-cyan-300 hover:bg-cyan-500/25 flex items-center gap-1.5"
           >
             <Grid3x3 className="w-3 h-3" />
-            Modules
+            <span className="hidden sm:inline">{t("topbar.modules")}</span>
+          </button>
+          <button
+            onClick={openSettings}
+            className="text-[11px] px-2 py-1.5 rounded-md text-white/60 hover:text-white hover:bg-white/5 flex items-center gap-1"
+            title={t("topbar.settings")}
+          >
+            <Settings className="w-3.5 h-3.5" />
           </button>
           {windows.length > 0 && (
             <button
@@ -83,7 +147,7 @@ export function TopBar() {
               className="text-[11px] px-2.5 py-1.5 rounded-md text-white/50 hover:text-rose-400 hover:bg-rose-500/10 flex items-center gap-1"
             >
               <X className="w-3 h-3" />
-              Tout fermer
+              <span className="hidden sm:inline">{t("topbar.closeAll")}</span>
             </button>
           )}
         </div>
@@ -108,8 +172,8 @@ export function TopBar() {
             >
               <div className="flex items-center justify-between mb-4">
                 <div>
-                  <div className="text-base font-semibold text-white">Registre des modules</div>
-                  <div className="text-[11px] text-white/50">Spawn manuel · hot-swap ready</div>
+                  <div className="text-base font-semibold text-white">{t("palette.title")}</div>
+                  <div className="text-[11px] text-white/50">{t("palette.subtitle")}</div>
                 </div>
                 <button
                   onClick={() => setPaletteOpen(false)}
@@ -124,11 +188,8 @@ export function TopBar() {
                   return (
                     <button
                       key={m.type}
-                      onClick={() => quickSpawn(m.type)}
-                      className={cn(
-                        "group bg-black/30 hover:bg-black/50 border border-white/8 hover:border-white/20 rounded-lg p-3 text-left transition flex flex-col gap-2"
-                      )}
-                      style={{ ["--accent" as string]: m.accent }}
+                      onClick={() => quickSpawn(m.type as keyof typeof MODULE_REGISTRY)}
+                      className="group bg-black/30 hover:bg-black/50 border border-white/8 hover:border-white/20 rounded-lg p-3 text-left transition flex flex-col gap-2"
                     >
                       <div
                         className="w-8 h-8 rounded-md flex items-center justify-center"
@@ -137,8 +198,8 @@ export function TopBar() {
                         <Icon className="w-4 h-4" style={{ color: m.accent }} />
                       </div>
                       <div>
-                        <div className="text-xs font-medium text-white">{m.label}</div>
-                        <div className="text-[10px] text-white/40 leading-tight mt-0.5">{m.description}</div>
+                        <div className="text-xs font-medium text-white">{t(`module.${m.type}`)}</div>
+                        <div className="text-[10px] text-white/40 leading-tight mt-0.5">{t(`module.${m.type}.desc`)}</div>
                       </div>
                     </button>
                   );
@@ -146,7 +207,7 @@ export function TopBar() {
               </div>
               <div className="mt-4 pt-3 border-t border-white/10 flex items-center gap-2 text-[10px] text-white/40">
                 <Plus className="w-2.5 h-2.5" />
-                Astuce : préfère le chat (en bas) pour spawn en langage naturel — l'IA choisit le module tout seul.
+                {t("palette.hint")}
               </div>
             </motion.div>
           </>
@@ -154,24 +215,4 @@ export function TopBar() {
       </AnimatePresence>
     </>
   );
-}
-
-function getDefaultSize(type: string) {
-  const map: Record<string, { width: number; height: number }> = {
-    chat: { width: 460, height: 560 },
-    monitor: { width: 540, height: 420 },
-    dashboard: { width: 720, height: 480 },
-    terminal: { width: 600, height: 380 },
-    kanban: { width: 680, height: 460 },
-    notes: { width: 480, height: 460 },
-    code: { width: 680, height: 480 },
-    weather: { width: 380, height: 460 },
-    clock: { width: 360, height: 240 },
-    music: { width: 420, height: 480 },
-    calculator: { width: 320, height: 440 },
-    stock: { width: 540, height: 380 },
-    camera: { width: 480, height: 420 },
-    metrics: { width: 560, height: 380 },
-  };
-  return map[type] ?? { width: 480, height: 400 };
 }

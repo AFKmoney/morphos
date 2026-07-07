@@ -5,8 +5,10 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useWindowStore } from "@/lib/window-store";
 import { getModuleMeta } from "./module-registry";
 import { Sparkles, Terminal as TerminalIcon } from "lucide-react";
+import { useT } from "@/lib/use-t";
 
 export function SpawnOverlay() {
+  const t = useT();
   const preview = useWindowStore((s) => s.spawnPreview);
   const [visibleLines, setVisibleLines] = useState<string[]>([]);
 
@@ -46,14 +48,14 @@ export function SpawnOverlay() {
           <div className="flex items-center gap-2 px-4 py-2.5 border-b border-white/10 bg-black/40">
             <div className="flex items-center gap-1.5">
               <Sparkles className="w-3.5 h-3.5 text-cyan-400 animate-pulse" />
-              <span className="text-xs font-mono text-cyan-300">morph-engine</span>
+              <span className="text-xs font-mono text-cyan-300">{t("spawn.engine")}</span>
             </div>
             <div className="text-[10px] text-white/40 ml-2">
-              self-writing module: <span className="text-white/70 font-mono">{preview.moduleType}</span>
+              {t("spawn.writing")} <span className="text-white/70 font-mono">{preview.moduleType}</span>
             </div>
             <div className="ml-auto flex items-center gap-1 text-[10px] text-emerald-400">
               <span className="w-1 h-1 rounded-full bg-emerald-400 live-dot" />
-              hot-reload
+              {t("spawn.hotreload")}
             </div>
           </div>
 
@@ -61,7 +63,7 @@ export function SpawnOverlay() {
           <div className="p-4 font-mono text-[11px] leading-5 max-h-[280px] overflow-y-auto thin-scroll bg-black/50">
             <div className="flex items-center gap-1.5 text-[10px] text-white/40 mb-2">
               <TerminalIcon className="w-3 h-3" />
-              <span>writing <span className="text-cyan-300">{preview.moduleType}.tsx</span></span>
+              <span>{t("spawn.writingFile")} <span className="text-cyan-300">{preview.moduleType}.tsx</span></span>
             </div>
             <div className="space-y-0.5">
               {visibleLines.map((line, i) => (
@@ -83,7 +85,7 @@ export function SpawnOverlay() {
           {/* Footer */}
           <div className="flex items-center justify-between px-4 py-2 border-t border-white/10 bg-black/40">
             <div className="text-[10px] text-white/40">
-              → mounting <span className="text-white/70 font-mono">{preview.title}</span>…
+              {t("spawn.mounting", { title: preview.title })}
             </div>
             <div className="flex items-center gap-1.5">
               <div className="w-24 h-1 bg-white/8 rounded-full overflow-hidden">
@@ -112,18 +114,13 @@ function highlightLine(line: string): string {
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;");
-  // Comments
   out = out.replace(/(\/\/.*$)/gm, '<span style="color:#64748b">$1</span>');
-  // Strings
   out = out.replace(/(['"`])([^'"`\n]*?)\1/g, '<span style="color:#fbbf24">$1$2$1</span>');
-  // Keywords
   out = out.replace(
     /\b(import|from|export|function|return|const|let|var|new|class|interface|type|extends|async|await)\b/g,
     '<span style="color:#22d3ee">$1</span>'
   );
-  // JSX tags
   out = out.replace(/(&lt;\/?)([A-Za-z][A-Za-z0-9]*)/g, '$1<span style="color:#f472b6">$2</span>');
-  // Numbers
   out = out.replace(/\b(\d+)\b/g, '<span style="color:#34d399">$1</span>');
   return out;
 }

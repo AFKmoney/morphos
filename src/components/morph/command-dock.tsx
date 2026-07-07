@@ -4,10 +4,34 @@ import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useWindowStore } from "@/lib/window-store";
 import { getModuleMeta } from "./module-registry";
-import { Sparkles, Send, X, Plus, Layers, Zap, Hexagon } from "lucide-react";
+import { Sparkles, Send, X, Layers, Zap, Hexagon } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/use-t";
+import { useSettings, buildProviderPayload } from "@/lib/settings-store";
+
+const MODULE_SIZES: Record<string, { width: number; height: number }> = {
+  chat: { width: 460, height: 560 },
+  monitor: { width: 540, height: 420 },
+  dashboard: { width: 720, height: 480 },
+  terminal: { width: 600, height: 380 },
+  kanban: { width: 680, height: 460 },
+  notes: { width: 480, height: 460 },
+  code: { width: 680, height: 480 },
+  weather: { width: 380, height: 460 },
+  clock: { width: 360, height: 240 },
+  music: { width: 420, height: 480 },
+  calculator: { width: 320, height: 440 },
+  stock: { width: 540, height: 380 },
+  camera: { width: 480, height: 420 },
+  metrics: { width: 560, height: 380 },
+};
+
+function getDefaultSize(type: string) {
+  return MODULE_SIZES[type] ?? { width: 480, height: 400 };
+}
 
 export function CommandDock() {
+  const t = useT();
   const windows = useWindowStore((s) => s.windows);
   const chatMessages = useWindowStore((s) => s.chatMessages);
   const isInterpreting = useWindowStore((s) => s.isInterpreting);
@@ -19,6 +43,7 @@ export function CommandDock() {
   const focusWindow = useWindowStore((s) => s.focusWindow);
   const restoreWindow = useWindowStore((s) => s.restoreWindow);
   const [showPanel, setShowPanel] = useState(false);
+  const language = useSettings((s) => s.language);
 
   const [input, setInput] = useState("");
   const taRef = useRef<HTMLTextAreaElement>(null);
@@ -38,19 +63,26 @@ export function CommandDock() {
       const res = await fetch("/api/interpret", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt: text, history }),
+        body: JSON.stringify({ prompt: text, history, language, provider: buildProviderPayload() }),
       });
       const data = await res.json();
+
+      if (data.error) {
+        addChatMessage({ role: "assistant", content: `⚠️ ${data.error}` });
+        setInterpreting(false);
+        return;
+      }
+
       showSpawnPreview({ code: data.codePreview, title: data.title, moduleType: data.moduleType });
       await new Promise((r) => setTimeout(r, 1600));
       addChatMessage({ role: "assistant", content: data.aiMessage });
 
-      const def = getModuleDefaultSize(data.moduleType);
+      const def = getDefaultSize(data.moduleType);
       const offset = windows.length;
       const col = offset % 3;
       const row = Math.floor(offset / 3) % 2;
-      const vw = typeof window !== "undefined" ? window.innerWidth : 1280;
-      const vh = typeof window !== "undefined" ? window.innerHeight : 800;
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
       const colWidth = Math.min(420, Math.max(280, Math.floor((vw - 80) / 3)));
       const baseX = 60 + col * (colWidth + 30);
       const baseY = 80 + row * 220;
@@ -66,7 +98,7 @@ export function CommandDock() {
       });
       hideSpawnPreview();
     } catch (e) {
-      addChatMessage({ role: "assistant", content: "Échec du hot-reload. Réessaie." });
+      addChatMessage({ role: "assistant", content: t("chat.fail") });
       hideSpawnPreview();
     } finally {
       setInterpreting(false);
@@ -85,7 +117,7 @@ export function CommandDock() {
 
   return (
     <>
-      {/* Minimized windows strip (top of dock) */}
+      {/* Minimized windows strip */}
       <AnimatePresence>
         {minimized.length > 0 && (
           <motion.div
@@ -115,7 +147,7 @@ export function CommandDock() {
         )}
       </AnimatePresence>
 
-      {/* Floating chat panel (above dock) */}
+      {/* Floating chat panel */}
       <AnimatePresence>
         {showPanel && (
           <motion.div
@@ -127,7 +159,7 @@ export function CommandDock() {
           >
             <div className="flex items-center gap-2 px-3 py-2 border-b border-white/10 bg-black/40">
               <Sparkles className="w-3 h-3 text-cyan-400" />
-              <span className="text-xs font-mono text-cyan-300">MorphOS console</span>
+              <span className="text-xs font-mono text-cyan-300">{t("app.title")} console</span>
               <button
                 onClick={() => setShowPanel(false)}
                 className="ml-auto text-white/40 hover:text-white"
@@ -149,7 +181,7 @@ export function CommandDock() {
               "w-8 h-8 rounded-full flex items-center justify-center shrink-0 transition",
               showPanel ? "bg-cyan-500/30 text-cyan-300" : "bg-white/5 text-white/60 hover:text-white"
             )}
-            title="Historique du chat"
+            title={t("dock.history")}
           >
             <Layers className="w-3.5 h-3.5" />
           </button>
@@ -163,7 +195,7 @@ export function CommandDock() {
               ta.style.height = Math.min(ta.scrollHeight, 80) + "px";
             }}
             onKeyDown={onKeyDown}
-            placeholder={isIntertingPlaceholder(isInterpreting)}
+            placeholder={isInterpreting ? t("dock.placeholderInterpreting") : t("dock.placeholder")}
             disabled={isInterpreting}
             rows={1}
             className="flex-1 bg-transparent text-sm text-white placeholder:text-white/40 outline-none resize-none py-1.5 min-h-[36px] max-h-[80px] thin-scroll"
@@ -184,25 +216,26 @@ export function CommandDock() {
         <div className="flex items-center gap-3 text-[9px] text-white/30">
           <span className="flex items-center gap-1">
             <Zap className="w-2 h-2 text-cyan-400" />
-            hot-reload
+            {t("dock.hotreload")}
           </span>
           <span>·</span>
-          <span>{visible.length} module{visible.length > 1 ? "s" : ""} actif{visible.length > 1 ? "s" : ""}</span>
+          <span>
+            {visible.length} {t("module." + (visible[0]?.type ?? "chat")) === "module." + (visible[0]?.type ?? "chat")
+              ? "module"
+              : "module"}{visible.length > 1 ? "s" : ""} {visible.length > 1 ? t("dock.activePlural") : t("dock.active")}
+          </span>
           <span>·</span>
-          <span className="font-mono text-white/40">⏎ pour faire apparaître un module</span>
+          <span className="font-mono text-white/40">{t("dock.hint")}</span>
         </div>
       </div>
     </>
   );
 }
 
-function isIntertingPlaceholder(isInterpreting: boolean) {
-  return isInterpreting ? "MorphOS écrit…" : "Dis-moi ce dont tu as besoin… (ex : « deviens un moniteur système »)";
-}
-
 function ChatHistory() {
   const chatMessages = useWindowStore((s) => s.chatMessages);
   const isInterpreting = useWindowStore((s) => s.isInterpreting);
+  const t = useT();
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -235,29 +268,9 @@ function ChatHistory() {
       {isInterpreting && (
         <div className="flex items-center gap-2 text-[10px] text-cyan-300/80">
           <Sparkles className="w-2.5 h-2.5 animate-pulse" />
-          <span className="shimmer-text">écriture du module en cours…</span>
+          <span className="shimmer-text">{t("dock.interpreting")}</span>
         </div>
       )}
     </div>
   );
-}
-
-function getModuleDefaultSize(type: string) {
-  const map: Record<string, { width: number; height: number }> = {
-    chat: { width: 460, height: 560 },
-    monitor: { width: 540, height: 420 },
-    dashboard: { width: 720, height: 480 },
-    terminal: { width: 600, height: 380 },
-    kanban: { width: 680, height: 460 },
-    notes: { width: 480, height: 460 },
-    code: { width: 680, height: 480 },
-    weather: { width: 380, height: 460 },
-    clock: { width: 360, height: 240 },
-    music: { width: 420, height: 480 },
-    calculator: { width: 320, height: 440 },
-    stock: { width: 540, height: 380 },
-    camera: { width: 480, height: 420 },
-    metrics: { width: 560, height: 380 },
-  };
-  return map[type] ?? { width: 480, height: 400 };
 }

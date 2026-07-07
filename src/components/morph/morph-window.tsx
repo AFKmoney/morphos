@@ -6,6 +6,7 @@ import { X, Minus, Square, Copy as Restore } from "lucide-react";
 import { useWindowStore, type MorphWindow } from "@/lib/window-store";
 import { getModuleMeta } from "./module-registry";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/use-t";
 
 interface WindowProps {
   win: MorphWindow;
@@ -27,6 +28,7 @@ const MIN_W = 280;
 const MIN_H = 200;
 
 export function MorphWindowView({ win }: WindowProps) {
+  const t = useT();
   const meta = getModuleMeta(win.type);
   const Icon = meta.icon;
 
@@ -162,21 +164,21 @@ export function MorphWindowView({ win }: WindowProps) {
           <button
             onClick={() => minimizeWindow(win.id)}
             className="w-6 h-6 rounded flex items-center justify-center text-white/40 hover:text-white/90 hover:bg-white/5"
-            title="Minimiser"
+            title={t("window.minimize")}
           >
             <Minus className="w-3 h-3" />
           </button>
           <button
             onClick={() => toggleMaximize(win.id)}
             className="w-6 h-6 rounded flex items-center justify-center text-white/40 hover:text-white/90 hover:bg-white/5"
-            title="Agrandir"
+            title={win.maximized ? t("window.restore") : t("window.maximize")}
           >
             {win.maximized ? <Restore className="w-3 h-3" /> : <Square className="w-2.5 h-2.5" />}
           </button>
           <button
             onClick={() => closeWindow(win.id)}
             className="w-6 h-6 rounded flex items-center justify-center text-white/40 hover:text-rose-400 hover:bg-rose-500/10"
-            title="Fermer"
+            title={t("window.close")}
           >
             <X className="w-3 h-3" />
           </button>

@@ -77,11 +77,10 @@
   --sidebar-border: oklch(1 0 0 / 8%);
   --sidebar-ring: oklch(0.78 0.18 195);
 
-  --neon-cyan: #22d3ee;
-  --neon-emerald: #34d399;
-  --neon-pink: #f472b6;
-  --neon-amber: #fbbf24;
-  --neon-violet: #c084fc;
+  /* Dynamic theme accent (overridden by ThemeProvider) */
+  --morph-accent: #22d3ee;
+  --morph-accent-2: #34d399;
+  --morph-accent-rgb: 34, 211, 238;
 }
 
 @layer base {
@@ -95,14 +94,14 @@
   }
 }
 
-/* Animated grid background */
+/* ============ Animated grid background ============ */
 .morph-grid-bg {
   position: fixed;
   inset: 0;
   background-color: oklch(0.07 0.005 260);
   background-image:
-    linear-gradient(rgba(34, 211, 238, 0.12) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(34, 211, 238, 0.12) 1px, transparent 1px);
+    linear-gradient(rgba(var(--morph-accent-rgb), 0.12) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(var(--morph-accent-rgb), 0.12) 1px, transparent 1px);
   background-size: 48px 48px;
   background-position: center center;
 }
@@ -112,7 +111,7 @@
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(circle at 20% 30%, rgba(34, 211, 238, 0.18), transparent 40%),
+    radial-gradient(circle at 20% 30%, rgba(var(--morph-accent-rgb), 0.18), transparent 40%),
     radial-gradient(circle at 80% 70%, rgba(192, 132, 252, 0.14), transparent 40%),
     radial-gradient(circle at 50% 100%, rgba(52, 211, 153, 0.12), transparent 50%);
   pointer-events: none;
@@ -124,8 +123,8 @@
   position: absolute;
   inset: 0;
   background-image:
-    linear-gradient(rgba(34, 211, 238, 0.06) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(34, 211, 238, 0.06) 1px, transparent 1px);
+    linear-gradient(rgba(var(--morph-accent-rgb), 0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(var(--morph-accent-rgb), 0.06) 1px, transparent 1px);
   background-size: 12px 12px;
   pointer-events: none;
   z-index: 0;
@@ -137,16 +136,16 @@
   to { background-position: 48px 48px; }
 }
 
-/* Glass morphism window */
+/* ============ Glass morphism ============ */
 .glass-panel {
   background: oklch(0.13 0.012 260 / 0.85);
   backdrop-filter: blur(20px) saturate(140%);
   -webkit-backdrop-filter: blur(20px) saturate(140%);
   border: 1px solid rgba(255, 255, 255, 0.08);
   box-shadow:
-    0 0 0 1px rgba(34, 211, 238, 0.05),
+    0 0 0 1px rgba(var(--morph-accent-rgb), 0.05),
     0 20px 60px -10px rgba(0, 0, 0, 0.6),
-    0 0 80px -20px rgba(34, 211, 238, 0.15);
+    0 0 80px -20px rgba(var(--morph-accent-rgb), 0.15);
 }
 
 .glass-panel-strong {
@@ -155,15 +154,15 @@
   -webkit-backdrop-filter: blur(24px) saturate(160%);
   border: 1px solid rgba(255, 255, 255, 0.1);
   box-shadow:
-    0 0 0 1px rgba(34, 211, 238, 0.08),
+    0 0 0 1px rgba(var(--morph-accent-rgb), 0.08),
     0 30px 80px -10px rgba(0, 0, 0, 0.7),
-    0 0 100px -20px rgba(34, 211, 238, 0.2);
+    0 0 100px -20px rgba(var(--morph-accent-rgb), 0.2);
 }
 
-/* Neon glow text */
+/* ============ Neon glow text ============ */
 .neon-cyan {
-  color: #22d3ee;
-  text-shadow: 0 0 8px rgba(34, 211, 238, 0.6), 0 0 20px rgba(34, 211, 238, 0.3);
+  color: var(--morph-accent);
+  text-shadow: 0 0 8px rgba(var(--morph-accent-rgb), 0.6), 0 0 20px rgba(var(--morph-accent-rgb), 0.3);
 }
 .neon-emerald {
   color: #34d399;
@@ -174,18 +173,18 @@
   text-shadow: 0 0 8px rgba(244, 114, 182, 0.6), 0 0 20px rgba(244, 114, 182, 0.3);
 }
 
-/* Scrollbar */
+/* ============ Scrollbar ============ */
 .thin-scroll::-webkit-scrollbar { width: 6px; height: 6px; }
 .thin-scroll::-webkit-scrollbar-track { background: transparent; }
 .thin-scroll::-webkit-scrollbar-thumb {
-  background: rgba(34, 211, 238, 0.25);
+  background: rgba(var(--morph-accent-rgb), 0.25);
   border-radius: 3px;
 }
 .thin-scroll::-webkit-scrollbar-thumb:hover {
-  background: rgba(34, 211, 238, 0.45);
+  background: rgba(var(--morph-accent-rgb), 0.45);
 }
 
-/* Cursor blink for code writing */
+/* ============ Cursor blink for code writing ============ */
 @keyframes cursor-blink {
   0%, 49% { opacity: 1; }
   50%, 100% { opacity: 0; }
@@ -193,12 +192,12 @@
 .cursor-blink::after {
   content: "▊";
   display: inline-block;
-  color: #22d3ee;
+  color: var(--morph-accent);
   animation: cursor-blink 1s steps(1) infinite;
   margin-left: 2px;
 }
 
-/* Pulse for live indicators */
+/* ============ Pulse for live indicators ============ */
 @keyframes live-pulse {
   0%, 100% { opacity: 1; transform: scale(1); }
   50% { opacity: 0.6; transform: scale(1.15); }
@@ -207,7 +206,7 @@
   animation: live-pulse 1.8s ease-in-out infinite;
 }
 
-/* Shimmer for "writing" effect */
+/* ============ Shimmer ============ */
 @keyframes shimmer {
   0% { background-position: -200% 0; }
   100% { background-position: 200% 0; }
@@ -215,9 +214,9 @@
 .shimmer-text {
   background: linear-gradient(
     90deg,
-    rgba(34, 211, 238, 0.4) 0%,
-    rgba(34, 211, 238, 1) 50%,
-    rgba(34, 211, 238, 0.4) 100%
+    rgba(var(--morph-accent-rgb), 0.4) 0%,
+    rgba(var(--morph-accent-rgb), 1) 50%,
+    rgba(var(--morph-accent-rgb), 0.4) 100%
   );
   background-size: 200% 100%;
   -webkit-background-clip: text;
@@ -226,7 +225,7 @@
   animation: shimmer 2s linear infinite;
 }
 
-/* Floating animation for ambient elements */
+/* ============ Floating ============ */
 @keyframes float-slow {
   0%, 100% { transform: translateY(0); }
   50% { transform: translateY(-8px); }
@@ -235,7 +234,7 @@
   animation: float-slow 6s ease-in-out infinite;
 }
 
-/* Window resize handle */
+/* ============ Window resize handles ============ */
 .resize-handle {
   position: absolute;
   background: transparent;
@@ -247,11 +246,44 @@
 .resize-handle-se { bottom: 0; right: 0; width: 14px; height: 14px; cursor: nwse-resize; }
 .resize-handle-sw { bottom: 0; left: 0; width: 14px; height: 14px; cursor: nesw-resize; }
 
-/* Code line fade in */
+/* ============ Code line fade in ============ */
 @keyframes line-fade-in {
   from { opacity: 0; transform: translateX(-4px); }
   to { opacity: 1; transform: translateX(0); }
 }
 .line-fade-in {
   animation: line-fade-in 0.18s ease-out;
+}
+
+/* ============ Glow trail for spawning windows ============ */
+@keyframes spawn-glow {
+  0% { box-shadow: 0 0 0 0 rgba(var(--morph-accent-rgb), 0.8), 0 0 60px 10px rgba(var(--morph-accent-rgb), 0.6); }
+  100% { box-shadow: 0 0 0 1px rgba(var(--morph-accent-rgb), 0.3), 0 20px 60px -10px rgba(0,0,0,0.7); }
+}
+.spawn-glow {
+  animation: spawn-glow 1.2s ease-out;
+}
+
+/* ============ Boot sequence typewriter ============ */
+@keyframes blink-caret {
+  0%, 100% { border-color: transparent; }
+  50% { border-color: var(--morph-accent); }
+}
+
+/* ============ Provider badge pulse ============ */
+@keyframes badge-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+.badge-pulse {
+  animation: badge-pulse 2s ease-in-out infinite;
+}
+
+/* ============ Reduce motion ============ */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
