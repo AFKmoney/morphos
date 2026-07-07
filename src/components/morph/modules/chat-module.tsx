@@ -11,7 +11,7 @@ import { useT } from "@/lib/use-t";
 import { useSettings, buildProviderPayload } from "@/lib/settings-store";
 
 interface ChatModuleProps {
-  windowId: string;
+  windowId?: string;
 }
 
 const MODULE_SIZES: Record<string, { width: number; height: number }> = {
@@ -29,6 +29,18 @@ const MODULE_SIZES: Record<string, { width: number; height: number }> = {
   stock: { width: 540, height: 380 },
   camera: { width: 480, height: 420 },
   metrics: { width: 560, height: 380 },
+  pomodoro: { width: 320, height: 420 },
+  paint: { width: 580, height: 480 },
+  regex: { width: 540, height: 520 },
+  json: { width: 560, height: 440 },
+  colorpicker: { width: 380, height: 540 },
+  qr: { width: 360, height: 480 },
+  devtools: { width: 480, height: 540 },
+  files: { width: 580, height: 460 },
+  browser: { width: 720, height: 560 },
+  calendar: { width: 380, height: 480 },
+  whiteboard: { width: 580, height: 480 },
+  custom: { width: 460, height: 420 },
 };
 
 function getDefaultSize(type: string) {
@@ -107,17 +119,72 @@ export function ChatModule({}: ChatModuleProps) {
         return;
       }
 
-      // Show the "AI is writing code" preview
-      showSpawnPreview({
-        code: data.codePreview,
-        title: data.title,
-        moduleType: data.moduleType,
-      });
+      // If it's a custom module, we need to generate the code first
+      let customCode: string | undefined;
+      let displayTitle = data.title;
+      if (data.moduleType === "custom" && data.prompt) {
+        // Show a different preview message for code generation
+        showSpawnPreview({
+          code: [
+            `// MorphOS — AI generating custom module`,
+            `// Prompt: ${data.prompt}`,
+            ``,
+            `import { forge } from "@morphos/forge";`,
+            ``,
+            `export const customModule = forge({`,
+            `  prompt: "${data.prompt.slice(0, 60)}",`,
+            `  live: true,`,
+            `  selfWriting: true,`,
+            `});`,
+            ``,
+            `// → asking LLM to write the component…`,
+          ],
+          title: data.title,
+          moduleType: data.moduleType,
+        });
+        await new Promise((r) => setTimeout(r, 1600));
 
-      // Let the animation play for a beat
-      await new Promise((r) => setTimeout(r, 1600));
+        // Generate the actual code
+        try {
+          const genRes = await fetch("/api/generate-module", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              prompt: data.prompt,
+              provider: buildProviderPayload(),
+            }),
+          });
+          const genData = await genRes.json();
+          if (genData.code) {
+            customCode = genData.code;
+            displayTitle = genData.title || data.title;
+          }
+        } catch (e) {
+          addChatMessage({ role: "assistant", content: t("chat.fail") });
+          hideSpawnPreview();
+          setInterpreting(false);
+          return;
+        }
 
-      addChatMessage({ role: "assistant", content: data.aiMessage });
+        addChatMessage({ role: "assistant", content: data.aiMessage });
+
+        // Show the generated code as a second preview
+        showSpawnPreview({
+          code: (customCode || "").split("\n").slice(0, 30),
+          title: displayTitle,
+          moduleType: data.moduleType,
+        });
+        await new Promise((r) => setTimeout(r, 1200));
+      } else {
+        // Show the "AI is writing code" preview
+        showSpawnPreview({
+          code: data.codePreview,
+          title: data.title,
+          moduleType: data.moduleType,
+        });
+        await new Promise((r) => setTimeout(r, 1600));
+        addChatMessage({ role: "assistant", content: data.aiMessage });
+      }
 
       // Spawn the window
       const def = getDefaultSize(data.moduleType);
@@ -131,13 +198,15 @@ export function ChatModule({}: ChatModuleProps) {
       const baseY = 80 + row * 220;
       spawnWindow({
         type: data.moduleType,
-        title: data.title,
+        title: displayTitle,
         subtitle: data.subtitle,
         x: Math.max(20, Math.min(vw - def.width - 20, baseX)),
         y: Math.max(60, Math.min(vh - def.height - 100, baseY)),
         width: def.width,
         height: def.height,
         config: data.config,
+        code: customCode,
+        prompt: data.prompt,
       });
 
       hideSpawnPreview();

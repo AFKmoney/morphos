@@ -4,7 +4,7 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useWindowStore } from "@/lib/window-store";
 import { MODULE_REGISTRY, getModuleMeta } from "./module-registry";
-import { Hexagon, Grid3x3, X, Plus, Activity, Settings, Globe, Cpu } from "lucide-react";
+import { Hexagon, Grid3x3, X, Plus, Activity, Settings, Globe, Cpu, Layers } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/use-t";
 import { useSettings } from "@/lib/settings-store";
@@ -25,13 +25,24 @@ const MODULE_SIZES: Record<string, { width: number; height: number }> = {
   stock: { width: 540, height: 380 },
   camera: { width: 480, height: 420 },
   metrics: { width: 560, height: 380 },
+  pomodoro: { width: 320, height: 420 },
+  paint: { width: 580, height: 480 },
+  regex: { width: 540, height: 520 },
+  json: { width: 560, height: 440 },
+  colorpicker: { width: 380, height: 540 },
+  qr: { width: 360, height: 480 },
+  devtools: { width: 480, height: 540 },
+  files: { width: 580, height: 460 },
+  browser: { width: 720, height: 560 },
+  calendar: { width: 380, height: 480 },
+  whiteboard: { width: 580, height: 480 },
 };
 
 function getDefaultSize(type: string) {
   return MODULE_SIZES[type] ?? { width: 480, height: 400 };
 }
 
-export function TopBar() {
+export function TopBar({ onOpenWorkspaces }: { onOpenWorkspaces: () => void }) {
   const t = useT();
   const [paletteOpen, setPaletteOpen] = useState(false);
   const windows = useWindowStore((s) => s.windows);
@@ -133,6 +144,13 @@ export function TopBar() {
           >
             <Grid3x3 className="w-3 h-3" />
             <span className="hidden sm:inline">{t("topbar.modules")}</span>
+          </button>
+          <button
+            onClick={onOpenWorkspaces}
+            className="text-[11px] px-2 py-1.5 rounded-md text-white/60 hover:text-white hover:bg-white/5 flex items-center gap-1"
+            title="Workspaces (⌘⇧S)"
+          >
+            <Layers className="w-3.5 h-3.5" />
           </button>
           <button
             onClick={openSettings}

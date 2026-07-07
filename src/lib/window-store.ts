@@ -3,20 +3,12 @@
 import { create } from "zustand";
 
 export type ModuleType =
-  | "chat"
-  | "monitor"
-  | "dashboard"
-  | "terminal"
-  | "kanban"
-  | "notes"
-  | "code"
-  | "weather"
-  | "clock"
-  | "music"
-  | "calculator"
-  | "stock"
-  | "camera"
-  | "metrics";
+  | "chat" | "monitor" | "dashboard" | "terminal" | "kanban"
+  | "notes" | "code" | "weather" | "clock" | "music"
+  | "calculator" | "stock" | "camera" | "metrics"
+  | "pomodoro" | "paint" | "regex" | "json" | "colorpicker"
+  | "qr" | "devtools" | "files" | "browser" | "calendar"
+  | "whiteboard" | "custom";
 
 export interface MorphWindow {
   id: string;
@@ -30,10 +22,12 @@ export interface MorphWindow {
   z: number;
   minimized: boolean;
   maximized: boolean;
-  // Optional previous geometry for restore from maximize
   prev?: { x: number; y: number; width: number; height: number };
-  // Module-specific config (free-form)
   config?: Record<string, unknown>;
+  /** For custom AI-generated modules: the generated TSX code */
+  code?: string;
+  /** The natural-language prompt that created this window (if any) */
+  prompt?: string;
   createdAt: number;
 }
 
@@ -42,6 +36,13 @@ export interface ChatMessage {
   role: "user" | "assistant" | "system";
   content: string;
   ts: number;
+}
+
+export interface SavedWorkspace {
+  id: string;
+  name: string;
+  windows: MorphWindow[];
+  createdAt: number;
 }
 
 interface WindowStore {
@@ -56,6 +57,7 @@ interface WindowStore {
     title: string;
     moduleType: ModuleType;
   } | null;
+  workspaces: SavedWorkspace[];
 
   // actions
   spawnWindow: (w: Omit<MorphWindow, "id" | "z" | "createdAt" | "minimized" | "maximized">) => string;
@@ -66,6 +68,7 @@ interface WindowStore {
   toggleMaximize: (id: string) => void;
   restoreWindow: (id: string) => void;
   updateConfig: (id: string, config: Record<string, unknown>) => void;
+  snapWindow: (id: string, zone: "left" | "right" | "top" | "bottom" | "tl" | "tr" | "bl" | "br") => void;
 
   addChatMessage: (m: Omit<ChatMessage, "id" | "ts">) => void;
   setInterpreting: (v: boolean) => void;
@@ -74,29 +77,13 @@ interface WindowStore {
   hideSpawnPreview: () => void;
 
   closeAll: () => void;
+  saveWorkspace: (name: string) => void;
+  loadWorkspace: (id: string) => void;
+  deleteWorkspace: (id: string) => void;
 }
 
 let idCounter = 0;
 const genId = () => `w-${Date.now().toString(36)}-${(idCounter++).toString(36)}`;
-
-const DEFAULT_SIZE: Record<ModuleType, { width: number; height: number; title: string }> = {
-  chat: { width: 460, height: 560, title: "Console MorphOS" },
-  monitor: { width: 540, height: 420, title: "Moniteur Système" },
-  dashboard: { width: 720, height: 480, title: "Dashboard Analytics" },
-  terminal: { width: 600, height: 380, title: "Terminal Live" },
-  kanban: { width: 680, height: 460, title: "Kanban Opérations" },
-  notes: { width: 480, height: 460, title: "Notes Markdown" },
-  code: { width: 680, height: 480, title: "Éditeur de Code" },
-  weather: { width: 380, height: 460, title: "Météo" },
-  clock: { width: 360, height: 240, title: "Horloge Mondiale" },
-  music: { width: 420, height: 480, title: "Lecteur Audio" },
-  calculator: { width: 320, height: 440, title: "Calculatrice" },
-  stock: { width: 540, height: 380, title: "Markets Live" },
-  camera: { width: 480, height: 420, title: "Vision Caméra" },
-  metrics: { width: 560, height: 380, title: "Métriques Temps Réel" },
-};
-
-const clamp = (v: number, min: number, max: number) => Math.min(Math.max(v, min), max);
 
 export const useWindowStore = create<WindowStore>((set, get) => ({
   windows: [],
@@ -105,7 +92,7 @@ export const useWindowStore = create<WindowStore>((set, get) => ({
       id: "welcome",
       role: "assistant",
       content:
-        "Salut. Je suis MorphOS — une interface qui se réécrit elle-même. Dis-moi ce dont tu as besoin et je vais faire apparaître le module adapté. Essaie : « deviens un moniteur système », « ajoute un dashboard de ventes », « ouvre un terminal », « crée un kanban pour mon projet ».",
+        "Hey. I'm MorphOS — an interface that rewrites itself. Tell me what you need and I'll spawn the right module. Try: \"become a system monitor\", \"add a sales dashboard\", \"open a terminal\", \"create a pomodoro timer\", or describe anything and I'll generate a custom module on the fly.",
       ts: Date.now(),
     },
   ],
@@ -113,6 +100,7 @@ export const useWindowStore = create<WindowStore>((set, get) => ({
   zCounter: 10,
   isInterpreting: false,
   spawnPreview: null,
+  workspaces: [],
 
   spawnWindow: (w) => {
     const id = genId();
@@ -187,6 +175,36 @@ export const useWindowStore = create<WindowStore>((set, get) => ({
       ),
     })),
 
+  snapWindow: (id, zone) =>
+    set((s) => {
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
+      const top = 50;
+      const bottom = 90;
+      const usableH = vh - top - bottom;
+      const halfW = (vw - 32) / 2;
+      const halfH = usableH / 2;
+      const baseX = 16;
+      const midY = 16 + 50; // below topbar
+
+      const zones: Record<string, { x: number; y: number; width: number; height: number }> = {
+        left: { x: baseX, y: midY, width: halfW, height: usableH },
+        right: { x: baseX + halfW, y: midY, width: halfW, height: usableH },
+        top: { x: baseX, y: midY, width: vw - 32, height: halfH },
+        bottom: { x: baseX, y: midY + halfH, width: vw - 32, height: halfH },
+        tl: { x: baseX, y: midY, width: halfW, height: halfH },
+        tr: { x: baseX + halfW, y: midY, width: halfW, height: halfH },
+        bl: { x: baseX, y: midY + halfH, width: halfW, height: halfH },
+        br: { x: baseX + halfW, y: midY + halfH, width: halfW, height: halfH },
+      };
+      const geo = zones[zone];
+      return {
+        windows: s.windows.map((w) =>
+          w.id === id ? { ...w, ...geo, maximized: false, prev: undefined } : w
+        ),
+      };
+    }),
+
   addChatMessage: (m) =>
     set((s) => ({
       chatMessages: [...s.chatMessages, { ...m, id: genId(), ts: Date.now() }],
@@ -202,19 +220,42 @@ export const useWindowStore = create<WindowStore>((set, get) => ({
   hideSpawnPreview: () => set({ spawnPreview: null }),
 
   closeAll: () => set({ windows: [], activeId: null }),
+
+  saveWorkspace: (name) =>
+    set((s) => ({
+      workspaces: [
+        ...s.workspaces,
+        {
+          id: genId(),
+          name,
+          windows: s.windows.map((w) => ({ ...w, prev: undefined })),
+          createdAt: Date.now(),
+        },
+      ],
+    })),
+
+  loadWorkspace: (id) =>
+    set((s) => {
+      const ws = s.workspaces.find((w) => w.id === id);
+      if (!ws) return {};
+      const zBase = s.zCounter;
+      return {
+        windows: ws.windows.map((w, i) => ({
+          ...w,
+          id: genId(),
+          z: zBase + i + 1,
+          minimized: false,
+          maximized: false,
+          prev: undefined,
+          createdAt: Date.now(),
+        })),
+        zCounter: zBase + ws.windows.length,
+        activeId: null,
+      };
+    }),
+
+  deleteWorkspace: (id) =>
+    set((s) => ({
+      workspaces: s.workspaces.filter((w) => w.id !== id),
+    })),
 }));
-
-export function getModuleDefaultSize(type: ModuleType) {
-  return DEFAULT_SIZE[type] ?? { width: 480, height: 400, title: "Module" };
-}
-
-export function getSpawnPosition(existing: MorphWindow[]) {
-  // stagger new windows
-  const offset = existing.length * 28;
-  const baseX = 80 + (offset % 200);
-  const baseY = 80 + (offset % 160);
-  return {
-    x: clamp(baseX, 16, Math.max(16, window.innerWidth - 540)),
-    y: clamp(baseY, 16, Math.max(16, window.innerHeight - 500)),
-  };
-}

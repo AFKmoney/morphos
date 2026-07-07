@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useWindowStore } from "@/lib/window-store";
 import { getModuleMeta } from "./module-registry";
@@ -24,6 +24,18 @@ const MODULE_SIZES: Record<string, { width: number; height: number }> = {
   stock: { width: 540, height: 380 },
   camera: { width: 480, height: 420 },
   metrics: { width: 560, height: 380 },
+  pomodoro: { width: 320, height: 420 },
+  paint: { width: 580, height: 480 },
+  regex: { width: 540, height: 520 },
+  json: { width: 560, height: 440 },
+  colorpicker: { width: 380, height: 540 },
+  qr: { width: 360, height: 480 },
+  devtools: { width: 480, height: 540 },
+  files: { width: 580, height: 460 },
+  browser: { width: 720, height: 560 },
+  calendar: { width: 380, height: 480 },
+  whiteboard: { width: 580, height: 480 },
+  custom: { width: 460, height: 420 },
 };
 
 function getDefaultSize(type: string) {
@@ -73,9 +85,60 @@ export function CommandDock() {
         return;
       }
 
-      showSpawnPreview({ code: data.codePreview, title: data.title, moduleType: data.moduleType });
-      await new Promise((r) => setTimeout(r, 1600));
-      addChatMessage({ role: "assistant", content: data.aiMessage });
+      // Handle custom module generation
+      let customCode: string | undefined;
+      let displayTitle = data.title;
+      if (data.moduleType === "custom" && data.prompt) {
+        showSpawnPreview({
+          code: [
+            `// MorphOS — AI generating custom module`,
+            `// Prompt: ${data.prompt}`,
+            ``,
+            `import { forge } from "@morphos/forge";`,
+            ``,
+            `export const customModule = forge({`,
+            `  prompt: "${data.prompt.slice(0, 60)}",`,
+            `  live: true,`,
+            `  selfWriting: true,`,
+            `});`,
+            ``,
+            `// → asking LLM to write the component…`,
+          ],
+          title: data.title,
+          moduleType: data.moduleType,
+        });
+        await new Promise((r) => setTimeout(r, 1600));
+
+        try {
+          const genRes = await fetch("/api/generate-module", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ prompt: data.prompt, provider: buildProviderPayload() }),
+          });
+          const genData = await genRes.json();
+          if (genData.code) {
+            customCode = genData.code;
+            displayTitle = genData.title || data.title;
+          }
+        } catch (e) {
+          addChatMessage({ role: "assistant", content: t("chat.fail") });
+          hideSpawnPreview();
+          setInterpreting(false);
+          return;
+        }
+
+        addChatMessage({ role: "assistant", content: data.aiMessage });
+        showSpawnPreview({
+          code: (customCode || "").split("\n").slice(0, 30),
+          title: displayTitle,
+          moduleType: data.moduleType,
+        });
+        await new Promise((r) => setTimeout(r, 1200));
+      } else {
+        showSpawnPreview({ code: data.codePreview, title: data.title, moduleType: data.moduleType });
+        await new Promise((r) => setTimeout(r, 1600));
+        addChatMessage({ role: "assistant", content: data.aiMessage });
+      }
 
       const def = getDefaultSize(data.moduleType);
       const offset = windows.length;
@@ -88,13 +151,15 @@ export function CommandDock() {
       const baseY = 80 + row * 220;
       spawnWindow({
         type: data.moduleType,
-        title: data.title,
+        title: displayTitle,
         subtitle: data.subtitle,
         x: Math.max(20, Math.min(vw - def.width - 20, baseX)),
         y: Math.max(60, Math.min(vh - def.height - 100, baseY)),
         width: def.width,
         height: def.height,
         config: data.config,
+        code: customCode,
+        prompt: data.prompt,
       });
       hideSpawnPreview();
     } catch (e) {
@@ -117,7 +182,6 @@ export function CommandDock() {
 
   return (
     <>
-      {/* Minimized windows strip */}
       <AnimatePresence>
         {minimized.length > 0 && (
           <motion.div
@@ -147,7 +211,6 @@ export function CommandDock() {
         )}
       </AnimatePresence>
 
-      {/* Floating chat panel */}
       <AnimatePresence>
         {showPanel && (
           <motion.div
@@ -172,7 +235,6 @@ export function CommandDock() {
         )}
       </AnimatePresence>
 
-      {/* Main command bar */}
       <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center gap-2 w-[640px] max-w-[94vw]">
         <div className="glass-panel-strong rounded-full pl-3 pr-1 py-1 flex items-center gap-2 w-full shadow-2xl">
           <button
@@ -220,9 +282,7 @@ export function CommandDock() {
           </span>
           <span>·</span>
           <span>
-            {visible.length} {t("module." + (visible[0]?.type ?? "chat")) === "module." + (visible[0]?.type ?? "chat")
-              ? "module"
-              : "module"}{visible.length > 1 ? "s" : ""} {visible.length > 1 ? t("dock.activePlural") : t("dock.active")}
+            {visible.length} module{visible.length > 1 ? "s" : ""} {visible.length > 1 ? t("dock.activePlural") : t("dock.active")}
           </span>
           <span>·</span>
           <span className="font-mono text-white/40">{t("dock.hint")}</span>

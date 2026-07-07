@@ -187,7 +187,7 @@ export function MorphWindowView({ win }: WindowProps) {
 
       {/* Content */}
       <div className="flex-1 min-h-0 relative">
-        <Component windowId={win.id} />
+        <Component windowId={win.id} code={win.code} />
       </div>
 
       {/* Resize handles */}

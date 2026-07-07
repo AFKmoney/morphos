@@ -6,7 +6,10 @@ import { PROVIDERS } from "@/lib/providers";
 export type ModuleType =
   | "chat" | "monitor" | "dashboard" | "terminal" | "kanban"
   | "notes" | "code" | "weather" | "clock" | "music"
-  | "calculator" | "stock" | "camera" | "metrics";
+  | "calculator" | "stock" | "camera" | "metrics"
+  | "pomodoro" | "paint" | "regex" | "json" | "colorpicker"
+  | "qr" | "devtools" | "files" | "browser" | "calendar"
+  | "whiteboard" | "custom";
 
 export interface InterpretResult {
   moduleType: ModuleType;
@@ -15,6 +18,8 @@ export interface InterpretResult {
   aiMessage: string;
   codePreview: string[];
   config?: Record<string, unknown>;
+  /** For custom modules: the prompt to pass to the code generator */
+  prompt?: string;
 }
 
 interface ProviderPayload {
@@ -43,8 +48,20 @@ Modules disponibles (et ONLY ceux-là) :
 - music : lecteur audio (mock)
 - calculator : calculatrice fonctionnelle
 - stock : ticker boursier temps réel (mock)
-- camera : vision caméra (mock / webcam)
+- camera : vision caméra (webcam)
 - metrics : métriques temps réel type grafana
+- pomodoro : minuteur de focus avec pauses
+- paint : canvas de dessin avec pinceau/gomme
+- regex : testeur de regex
+- json : formateur / minifieur JSON
+- colorpicker : sélecteur de couleur avec harmonies
+- qr : générateur de QR code (visuel)
+- devtools : outils base64/URL/hash/UUID/binary/hex/ROT13
+- files : explorateur de fichiers virtuel
+- browser : navigateur web (iframe)
+- calendar : calendrier vue mois avec événements
+- whiteboard : tableau blanc libre SVG
+- custom : module custom généré par IA (utilise-le pour TOUTE requête qui ne correspond pas aux modules ci-dessus)
 
 Réponds STRICTEMENT en JSON avec ce schéma :
 {
@@ -52,11 +69,13 @@ Réponds STRICTEMENT en JSON avec ce schéma :
   "title": "<titre court en français, max 40 caractères>",
   "subtitle": "<sous-titre optionnel en français>",
   "aiMessage": "<message en français que l'assistant affiche dans le chat, 1-2 phrases, naturelle et sympa, qui annonce ce que tu fais>",
+  "prompt": "<si moduleType est 'custom', le prompt en langage naturel à passer au générateur de code ; sinon omit>",
   "config": { /* optionnel */ }
 }
 
 Règles :
 - Si la demande est ambiguë ou conversationnelle sans besoin de module, choisis "chat".
+- Si l'utilisateur demande quelque chose qui ne correspond à aucun module intégré (ex: "un jeu de morpion", "un tracker d'habitudes", "un lanceur de dés"), choisis "custom" et fournis un prompt clair décrivant ce qu'il faut construire.
 - Réponds UNIQUEMENT le JSON, aucun texte autour.`;
   }
   return `You are MorphOS, an interface engine that rewrites itself in real-time.
@@ -75,8 +94,20 @@ Available modules (ONLY these):
 - music: audio player (mock)
 - calculator: functional calculator
 - stock: live stock ticker (mock)
-- camera: camera vision (mock / webcam)
+- camera: camera vision (webcam)
 - metrics: real-time metrics (Grafana-style)
+- pomodoro: focus timer with break cycles
+- paint: drawing canvas with brush/eraser
+- regex: regex pattern tester
+- json: JSON formatter / minifier
+- colorpicker: color picker with harmonies
+- qr: QR code generator (visual)
+- devtools: base64/URL/hash/UUID/binary/hex/ROT13 tools
+- files: virtual file explorer
+- browser: web browser (iframe)
+- calendar: month view calendar with events
+- whiteboard: freehand drawing SVG
+- custom: AI-generated custom module (use this for ANY request that doesn't fit the above — describe what the user wants)
 
 Respond STRICTLY in JSON with this schema:
 {
@@ -84,11 +115,13 @@ Respond STRICTLY in JSON with this schema:
   "title": "<short title in English, max 40 chars>",
   "subtitle": "<optional subtitle in English>",
   "aiMessage": "<message the assistant displays in the chat, 1-2 sentences, natural and friendly, announcing what you're doing>",
+  "prompt": "<if moduleType is 'custom', the natural language prompt to pass to the code generator; otherwise omit>",
   "config": { /* optional */ }
 }
 
 Rules:
 - If the request is ambiguous or conversational with no module need, choose "chat".
+- If the user asks for something that doesn't match any built-in module (e.g. "a tic-tac-toe game", "a habit tracker", "a dice roller"), choose "custom" and provide a clear prompt describing what to build.
 - Respond ONLY the JSON, no surrounding text.`;
 }
 
@@ -320,11 +353,24 @@ export async function POST(req: NextRequest) {
           const obj = JSON.parse(match[0]);
           const allowed: ModuleType[] = [
             "chat","monitor","dashboard","terminal","kanban","notes","code",
-            "weather","clock","music","calculator","stock","camera","metrics"
+            "weather","clock","music","calculator","stock","camera","metrics",
+            "pomodoro","paint","regex","json","colorpicker","qr","devtools",
+            "files","browser","calendar","whiteboard","custom"
           ];
-          const moduleType = (allowed.includes(obj.moduleType) ? obj.moduleType : "chat") as ModuleType;
+          let moduleType = (allowed.includes(obj.moduleType) ? obj.moduleType : "chat") as ModuleType;
+
+          // Redirect unsupported module types to custom (they'll be AI-generated)
+          const supportedTypes: ModuleType[] = ["chat","monitor","dashboard","terminal","kanban","notes","code","weather","clock","music","calculator","stock","camera","metrics","custom"];
+          if (!supportedTypes.includes(moduleType)) {
+            // Convert to custom with the original request as prompt
+            const customPrompt = obj.prompt || prompt;
+            moduleType = "custom";
+            obj.prompt = customPrompt;
+          }
+
           const title = (obj.title ?? "Module").toString().slice(0, 60);
           const aiMessage = (obj.aiMessage ?? `Spawning ${title}.`).toString();
+          const customPrompt = moduleType === "custom" && obj.prompt ? String(obj.prompt).slice(0, 500) : undefined;
           parsed = {
             moduleType,
             title,
@@ -332,6 +378,7 @@ export async function POST(req: NextRequest) {
             aiMessage,
             codePreview: buildCodePreview(moduleType, title),
             config: obj.config && typeof obj.config === "object" ? obj.config : undefined,
+            prompt: customPrompt,
           };
         } catch (e) {
           console.error("[interpret] JSON parse failed:", e);
