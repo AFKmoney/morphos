@@ -19,7 +19,7 @@ L'utilisateur te parle en langage naturel et tu dois décider quel module faire 
 
 Modules disponibles :
 - chat, monitor, dashboard, terminal, kanban, notes, code, weather, clock, music, calculator, stock, camera, metrics
-- pomodoro, paint, regex, json, colorpicker, qr, devtools, files, browser, calendar, whiteboard
+- pomodoro, paint, regex, json, colorpicker, qr, devtools, files, browser, calendar, whiteboard, imagegen
 - custom : module généré par IA (pour TOUTE requête qui ne correspond pas aux modules ci-dessus)
 
 Réponds STRICTEMENT en JSON : {"moduleType":"...","title":"...","aiMessage":"...","prompt":"(si custom)"}`;
@@ -27,9 +27,9 @@ Réponds STRICTEMENT en JSON : {"moduleType":"...","title":"...","aiMessage":"..
   return `You are MorphOS, an interface engine that rewrites itself in real-time.
 The user speaks to you in natural language and you decide which module to spawn.
 
-Available modules: chat, monitor, dashboard, terminal, kanban, notes, code, weather, clock, music, calculator, stock, camera, metrics, pomodoro, paint, regex, json, colorpicker, qr, devtools, files, browser, calendar, whiteboard, custom
+Available modules: chat, monitor, dashboard, terminal, kanban, notes, code, weather, clock, music, calculator, stock, camera, metrics, pomodoro, paint, regex, json, colorpicker, qr, devtools, files, browser, calendar, whiteboard, imagegen, custom
 
-Respond STRICTLY in JSON: {"moduleType":"...","title":"...","aiMessage":"...","prompt":"(if custom)"}`;
+Respond STRICTELY in JSON: {"moduleType":"...","title":"...","aiMessage":"...","prompt":"(if custom)"}`;
 }
 
 export async function POST(req: NextRequest) {
@@ -61,101 +61,34 @@ export async function POST(req: NextRequest) {
 
     const encoder = new TextEncoder();
 
-    // Stream function — tries streaming, falls back to non-stream
-    async function streamFromProvider(): Promise<ReadableStream> {
-      let responseStream: ReadableStream<Uint8Array>;
+    // Get raw text from the LLM
+    let rawText = "";
+    let useStreaming = false;
 
-      if (provider.providerId === "zai") {
-        // Z.ai — use SDK or direct fetch
-        const baseUrl = provider.apiKey
-          ? (provider.baseUrl || "https://api.z.ai/api/paas/v4")
-          : "";
+    if (provider.providerId === "zai") {
+      if (provider.apiKey) {
+        // Direct fetch with streaming
+        const baseUrl = provider.baseUrl || "https://api.z.ai/api/paas/v4";
         const model = provider.model || "glm-4.6";
+        const url = baseUrl.endsWith("/") ? `${baseUrl}chat/completions` : `${baseUrl}/chat/completions`;
+        const res = await fetch(url, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${provider.apiKey}`,
+          },
+          body: JSON.stringify({ model, messages, temperature: 0.4, max_tokens: 400, stream: true }),
+        });
 
-        if (provider.apiKey) {
-          // Direct fetch with streaming
-          const url = baseUrl.endsWith("/") ? `${baseUrl}chat/completions` : `${baseUrl}/chat/completions`;
-          const res = await fetch(url, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${provider.apiKey}`,
-            },
-            body: JSON.stringify({ model, messages, temperature: 0.4, max_tokens: 400, stream: true }),
-          });
-
-          if (!res.ok || !res.body) {
-            throw new Error(`HTTP ${res.status}`);
-          }
-
-          responseStream = res.body;
-        } else {
-          // SDK — no streaming, simulate it
-          const zai = await ZAI.create();
-          const completion = await zai.chat.completions.create({
-            messages: messages as any,
-            temperature: 0.4,
-            max_tokens: 400,
-          });
-          const text = completion.choices?.[0]?.message?.content ?? "";
-
-          responseStream = new ReadableStream({
-            async start(controller) {
-              // Simulate streaming by sending chunks
-              const words = text.split(/(\s+)/);
-              for (const word of words) {
-                controller.enqueue(encoder.encode(word));
-                await new Promise(r => setTimeout(r, 15));
-              }
-              controller.close();
-            },
-          });
-        }
-      } else {
-        // Other providers — direct fetch with streaming
-        const cfg = PROVIDERS[provider.providerId];
-        if (!cfg) throw new Error("unknown provider");
-        const baseUrl = provider.baseUrl || cfg.baseUrl;
-        const model = provider.model || cfg.defaultModel;
-        const apiKey = provider.apiKey || "";
-        if (cfg.requiresKey && !apiKey) throw new Error(`API key required for ${cfg.label}`);
-
-        if (cfg.apiStyle === "openai") {
-          const url = baseUrl.endsWith("/") ? `${baseUrl}chat/completions` : `${baseUrl}/chat/completions`;
-          const headers: Record<string, string> = { "Content-Type": "application/json" };
-          if (apiKey) headers["Authorization"] = `Bearer ${apiKey}`;
-          const res = await fetch(url, {
-            method: "POST",
-            headers,
-            body: JSON.stringify({ model, messages, temperature: 0.4, max_tokens: 400, stream: true }),
-          });
-          if (!res.ok || !res.body) throw new Error(`HTTP ${res.status}`);
-          responseStream = res.body;
-        } else {
-          // Anthropic/Cohere — no streaming, simulate
-          throw new Error("Streaming not supported for this provider, use /api/interpret");
-        }
-      }
-
-      return responseStream;
-    }
-
-    // Create SSE stream
-    const sseStream = new ReadableStream({
-      async start(controller) {
-        try {
-          const rawStream = await streamFromProvider();
-          const reader = rawStream.getReader();
+        if (res.ok && res.body) {
+          useStreaming = true;
+          const reader = res.body.getReader();
           const decoder = new TextDecoder();
-          let fullText = "";
 
           while (true) {
             const { done, value } = await reader.read();
             if (done) break;
-
             const chunk = decoder.decode(value, { stream: true });
-
-            // Parse SSE data lines
             const lines = chunk.split("\n");
             for (const line of lines) {
               if (line.startsWith("data: ")) {
@@ -163,35 +96,97 @@ export async function POST(req: NextRequest) {
                 if (data === "[DONE]") continue;
                 try {
                   const json = JSON.parse(data);
-                  const delta = json.choices?.[0]?.delta?.content ?? json.choices?.[0]?.message?.content ?? "";
+                  const delta = json.choices?.[0]?.delta?.content ?? "";
                   if (delta) {
-                    fullText += delta;
-                    controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "delta", content: delta })}\n\n`));
+                    rawText += delta;
+                    // Send delta to client
                   }
-                } catch {
-                  // Might be partial JSON, accumulate
-                  fullText += chunk;
-                  controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "delta", content: chunk })}\n\n`));
-                }
+                } catch {}
               }
             }
           }
-
-          // Try to parse the full text as JSON
-          const match = fullText.match(/\{[\s\S]*\}/);
-          let parsed: any = null;
-          if (match) {
-            try { parsed = JSON.parse(match[0]); } catch {}
-          }
-
-          if (parsed) {
-            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "done", result: parsed })}\n\n`));
-          } else {
-            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "done", result: { moduleType: "chat", title: "Response", aiMessage: fullText.slice(0, 200) } })}\n\n`));
-          }
-        } catch (e) {
-          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "error", error: e instanceof Error ? e.message : String(e) })}\n\n`));
+        } else {
+          // Fallback to non-streaming
+          const res2 = await fetch(url, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${provider.apiKey}`,
+            },
+            body: JSON.stringify({ model, messages, temperature: 0.4, max_tokens: 400 }),
+          });
+          const data = await res2.json();
+          rawText = data?.choices?.[0]?.message?.content ?? "";
         }
+      } else {
+        // Z.ai SDK — no streaming, just get the response
+        const zai = await ZAI.create();
+        const completion = await zai.chat.completions.create({
+          messages: messages as any,
+          temperature: 0.4,
+          max_tokens: 400,
+        });
+        rawText = completion.choices?.[0]?.message?.content ?? "";
+      }
+    } else {
+      // Other providers
+      const cfg = PROVIDERS[provider.providerId];
+      if (!cfg) throw new Error("unknown provider");
+      const baseUrl = provider.baseUrl || cfg.baseUrl;
+      const model = provider.model || cfg.defaultModel;
+      const apiKey = provider.apiKey || "";
+      if (cfg.requiresKey && !apiKey) throw new Error(`API key required for ${cfg.label}`);
+
+      if (cfg.apiStyle === "openai") {
+        const url = baseUrl.endsWith("/") ? `${baseUrl}chat/completions` : `${baseUrl}/chat/completions`;
+        const headers: Record<string, string> = { "Content-Type": "application/json" };
+        if (apiKey) headers["Authorization"] = `Bearer ${apiKey}`;
+        const res = await fetch(url, {
+          method: "POST",
+          headers,
+          body: JSON.stringify({ model, messages, temperature: 0.4, max_tokens: 400 }),
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        rawText = data?.choices?.[0]?.message?.content ?? "";
+      } else if (cfg.apiStyle === "anthropic") {
+        const url = baseUrl.endsWith("/") ? `${baseUrl}messages` : `${baseUrl}/messages`;
+        const res = await fetch(url, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-api-key": apiKey,
+            "anthropic-version": "2023-06-01",
+          },
+          body: JSON.stringify({ model, system: fullSystemPrompt, messages: messages.map(m => ({ role: m.role === "system" ? "user" : m.role, content: m.content })), temperature: 0.4, max_tokens: 400 }),
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        rawText = data?.content?.[0]?.text ?? "";
+      } else {
+        throw new Error("Provider not supported");
+      }
+    }
+
+    // Parse the result
+    const match = rawText.match(/\{[\s\S]*\}/);
+    let parsed: any = null;
+    if (match) {
+      try { parsed = JSON.parse(match[0]); } catch {}
+    }
+
+    if (!parsed) {
+      parsed = {
+        moduleType: "chat",
+        title: "Response",
+        aiMessage: rawText.slice(0, 200) || "I didn't understand that. Try again.",
+      };
+    }
+
+    // Send the final result
+    const sseStream = new ReadableStream({
+      start(controller) {
+        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "done", result: parsed })}\n\n`));
         controller.close();
       },
     });
@@ -204,6 +199,15 @@ export async function POST(req: NextRequest) {
       },
     });
   } catch (e) {
-    return new Response(JSON.stringify({ error: String(e) }), { status: 500 });
+    const encoder = new TextEncoder();
+    const sseStream = new ReadableStream({
+      start(controller) {
+        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "error", error: e instanceof Error ? e.message : String(e) })}\n\n`));
+        controller.close();
+      },
+    });
+    return new Response(sseStream, {
+      headers: { "Content-Type": "text/event-stream" },
+    });
   }
 }
