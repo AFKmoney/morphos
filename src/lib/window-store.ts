@@ -157,10 +157,10 @@ export const useWindowStore = create<WindowStore>()(
               ...w,
               maximized: true,
               prev: { x: w.x, y: w.y, width: w.width, height: w.height },
-              x: 16,
-              y: 56,
-              width: window.innerWidth - 32,
-              height: window.innerHeight - 56 - 16,
+              x: 4,
+              y: 52,
+              width: window.innerWidth - 8,
+              height: window.innerHeight - 52 - 4,
             };
           }),
         })),
@@ -181,23 +181,25 @@ export const useWindowStore = create<WindowStore>()(
         set((s) => {
           const vw = window.innerWidth;
           const vh = window.innerHeight;
+          const m = 4; // margin
           const topBar = 48;
-          const bottomMargin = 16;
-          const usableH = vh - topBar - bottomMargin;
-          const halfW = (vw - 32) / 2;
-          const halfH = usableH / 2;
-          const baseX = 16;
-          const midY = topBar + 8;
+          const bottomMargin = m;
+          const usableH = vh - topBar - 4 - bottomMargin;
+          const gap = 4;
+          const halfW = (vw - m * 2 - gap) / 2;
+          const halfH = (usableH - gap) / 2;
+          const baseX = m;
+          const midY = topBar + 4;
 
           const zones: Record<string, { x: number; y: number; width: number; height: number }> = {
             left: { x: baseX, y: midY, width: halfW, height: usableH },
-            right: { x: baseX + halfW, y: midY, width: halfW, height: usableH },
-            top: { x: baseX, y: midY, width: vw - 32, height: halfH },
-            bottom: { x: baseX, y: midY + halfH, width: vw - 32, height: halfH },
+            right: { x: baseX + halfW + gap, y: midY, width: halfW, height: usableH },
+            top: { x: baseX, y: midY, width: vw - m * 2, height: halfH },
+            bottom: { x: baseX, y: midY + halfH + gap, width: vw - m * 2, height: halfH },
             tl: { x: baseX, y: midY, width: halfW, height: halfH },
-            tr: { x: baseX + halfW, y: midY, width: halfW, height: halfH },
-            bl: { x: baseX, y: midY + halfH, width: halfW, height: halfH },
-            br: { x: baseX + halfW, y: midY + halfH, width: halfW, height: halfH },
+            tr: { x: baseX + halfW + gap, y: midY, width: halfW, height: halfH },
+            bl: { x: baseX, y: midY + halfH + gap, width: halfW, height: halfH },
+            br: { x: baseX + halfW + gap, y: midY + halfH + gap, width: halfW, height: halfH },
           };
           const geo = zones[zone];
           return {

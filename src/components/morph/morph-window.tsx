@@ -27,6 +27,7 @@ interface DragState {
 const MIN_W = 280;
 const MIN_H = 200;
 const TOP_BAR_HEIGHT = 48; // Windows can't go above this
+const MARGIN = 4; // Margin from screen edges
 
 export function MorphWindowView({ win }: WindowProps) {
   const t = useT();
@@ -63,18 +64,37 @@ export function MorphWindowView({ win }: WindowProps) {
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
       rafRef.current = requestAnimationFrame(() => {
         if (st.mode === "move") {
-          const nx = Math.max(-st.origW + 80, Math.min(window.innerWidth - 80, st.origX + dx));
-          const ny = Math.max(TOP_BAR_HEIGHT, Math.min(window.innerHeight - 100, st.origY + dy));
+          // Clamp X: left edge >= MARGIN, right edge <= vw - MARGIN
+          const nx = Math.max(MARGIN, Math.min(window.innerWidth - st.origW - MARGIN, st.origX + dx));
+          // Clamp Y: top edge >= TOP_BAR_HEIGHT, bottom edge <= vh - MARGIN
+          const ny = Math.max(TOP_BAR_HEIGHT, Math.min(window.innerHeight - st.origH - MARGIN, st.origY + dy));
           updateGeometry(winIdRef.current, { x: nx, y: ny });
         } else {
           let nx = st.origX, ny = st.origY, nw = st.origW, nh = st.origH;
-          if (st.mode.includes("e")) nw = Math.max(MIN_W, st.origW + dx);
-          if (st.mode.includes("w")) { nw = Math.max(MIN_W, st.origW - dx); nx = st.origX + (st.origW - nw); }
-          if (st.mode.includes("s")) nh = Math.max(MIN_H, st.origH + dy);
+          const vw = window.innerWidth;
+          const vh = window.innerHeight;
+
+          // East resize: width grows, right edge can't exceed vw - MARGIN
+          if (st.mode.includes("e")) {
+            nw = Math.max(MIN_W, Math.min(vw - nx - MARGIN, st.origW + dx));
+          }
+          // West resize: width grows left, left edge can't go below MARGIN
+          if (st.mode.includes("w")) {
+            nw = Math.max(MIN_W, st.origW - dx);
+            nx = st.origX + (st.origW - nw);
+            if (nx < MARGIN) {
+              nw -= (MARGIN - nx);
+              nx = MARGIN;
+            }
+          }
+          // South resize: height grows, bottom edge can't exceed vh - MARGIN
+          if (st.mode.includes("s")) {
+            nh = Math.max(MIN_H, Math.min(vh - ny - MARGIN, st.origH + dy));
+          }
+          // North resize: height grows up, top edge can't go above TOP_BAR_HEIGHT
           if (st.mode.includes("n")) {
             nh = Math.max(MIN_H, st.origH - dy);
             ny = st.origY + (st.origH - nh);
-            // Don't let top edge go above the top bar
             if (ny < TOP_BAR_HEIGHT) {
               nh -= (TOP_BAR_HEIGHT - ny);
               ny = TOP_BAR_HEIGHT;
