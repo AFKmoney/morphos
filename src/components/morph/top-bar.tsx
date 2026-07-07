@@ -69,8 +69,8 @@ export function TopBar({ onOpenWorkspaces }: { onOpenWorkspaces: () => void }) {
     const baseY = 56 + row * 220;
     spawnWindow({
       type,
-      title: t(`module.${type}`),
-      subtitle: t(`module.${type}.desc`),
+      title: t(`module.${type}`) !== `module.${type}` ? t(`module.${type}`) : meta.label,
+      subtitle: t(`module.${type}.desc`) !== `module.${type}.desc` ? t(`module.${type}.desc`) : meta.description,
       x: Math.max(20, Math.min(vw - def.width - 20, baseX)),
       y: Math.max(56, Math.min(vh - def.height - 100, baseY)),
       width: def.width,
@@ -216,8 +216,12 @@ export function TopBar({ onOpenWorkspaces }: { onOpenWorkspaces: () => void }) {
                         <Icon className="w-4 h-4" style={{ color: m.accent }} />
                       </div>
                       <div>
-                        <div className="text-xs font-medium text-white">{t(`module.${m.type}`)}</div>
-                        <div className="text-[10px] text-white/40 leading-tight mt-0.5">{t(`module.${m.type}.desc`)}</div>
+                        <div className="text-xs font-medium text-white">
+                          {t(`module.${m.type}`) !== `module.${m.type}` ? t(`module.${m.type}`) : m.label}
+                        </div>
+                        <div className="text-[10px] text-white/40 leading-tight mt-0.5">
+                          {t(`module.${m.type}.desc`) !== `module.${m.type}.desc` ? t(`module.${m.type}.desc`) : m.description}
+                        </div>
                       </div>
                     </button>
                   );
