@@ -300,18 +300,44 @@ export async function POST(req: NextRequest) {
     let raw = "";
 
     if (provider.providerId === "zai") {
-      // Built-in Z.ai via SDK
-      try {
-        const zai = await ZAI.create();
-        const completion = await zai.chat.completions.create({
-          messages: messages as any,
-          temperature: 0.4,
-          max_tokens: 400,
-        });
-        raw = completion.choices?.[0]?.message?.content ?? "";
-      } catch (e) {
-        console.error("[interpret] Z.ai error:", e);
-        raw = "";
+      // If user provided a custom Z.ai API key, use direct fetch
+      if (provider.apiKey) {
+        try {
+          const baseUrl = provider.baseUrl || "https://api.z.ai/api/paas/v4";
+          const model = provider.model || "glm-4.6";
+          const url = baseUrl.endsWith("/") ? `${baseUrl}chat/completions` : `${baseUrl}/chat/completions`;
+          const res = await fetch(url, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${provider.apiKey}`,
+            },
+            body: JSON.stringify({ model, messages, temperature: 0.4, max_tokens: 400 }),
+          });
+          if (!res.ok) {
+            const text = await res.text().catch(() => "");
+            throw new Error(`HTTP ${res.status}: ${text.slice(0, 200)}`);
+          }
+          const data = await res.json();
+          raw = data?.choices?.[0]?.message?.content ?? "";
+        } catch (e) {
+          console.error("[interpret] Z.ai custom key error:", e);
+          raw = "";
+        }
+      } else {
+        // Built-in Z.ai via SDK
+        try {
+          const zai = await ZAI.create();
+          const completion = await zai.chat.completions.create({
+            messages: messages as any,
+            temperature: 0.4,
+            max_tokens: 400,
+          });
+          raw = completion.choices?.[0]?.message?.content ?? "";
+        } catch (e) {
+          console.error("[interpret] Z.ai SDK error:", e);
+          raw = "";
+        }
       }
     } else {
       const cfg = PROVIDERS[provider.providerId];

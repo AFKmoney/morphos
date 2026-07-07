@@ -191,7 +191,7 @@ function ProviderTab() {
                     <Check className="w-2.5 h-2.5 text-black" />
                   </div>
                 )}
-                {!selected && p.requiresKey && hasKey && (
+                {!selected && (p.requiresKey || p.keyOptional) && hasKey && (
                   <div className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-emerald-400" />
                 )}
               </button>
@@ -234,8 +234,8 @@ function ProviderTab() {
         </div>
 
         {/* API key */}
-        {cfg.requiresKey && (
-          <Field label={t("settings.apiKey")} icon={Key}>
+        {(cfg.requiresKey || cfg.keyOptional) && (
+          <Field label={cfg.keyOptional ? t("settings.apiKey.optional") : t("settings.apiKey")} icon={Key}>
             <input
               type="password"
               value={currentKey}
@@ -244,7 +244,7 @@ function ProviderTab() {
               className="flex-1 bg-black/40 border border-white/10 rounded px-2.5 py-1.5 text-xs text-white outline-none focus:border-cyan-400/50 font-mono"
             />
             <span className={cn("text-[10px]", currentKey ? "text-emerald-400" : "text-white/40")}>
-              {currentKey ? t("settings.apiKey.set") : t("settings.apiKey.unset")}
+              {currentKey ? t("settings.apiKey.set") : (cfg.keyOptional ? "optional" : t("settings.apiKey.unset"))}
             </span>
           </Field>
         )}

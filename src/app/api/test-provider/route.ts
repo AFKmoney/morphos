@@ -20,6 +20,36 @@ export async function POST(req: NextRequest) {
     };
 
     if (provider.providerId === "zai") {
+      // If user provided a custom Z.ai API key, test with direct fetch
+      if (provider.apiKey) {
+        try {
+          const baseUrl = provider.baseUrl || "https://api.z.ai/api/paas/v4";
+          const model = provider.model || "glm-4.6";
+          const url = baseUrl.endsWith("/") ? `${baseUrl}chat/completions` : `${baseUrl}/chat/completions`;
+          const res = await fetch(url, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${provider.apiKey}`,
+            },
+            body: JSON.stringify({
+              model,
+              messages: [{ role: "user", content: "Say OK" }],
+              max_tokens: 5,
+            }),
+          });
+          if (!res.ok) {
+            const text = await res.text().catch(() => "");
+            return NextResponse.json({ ok: false, error: `HTTP ${res.status}: ${text.slice(0, 150)}` }, { status: 502 });
+          }
+          const data = await res.json();
+          const txt = data?.choices?.[0]?.message?.content ?? "";
+          return NextResponse.json({ ok: true, reply: txt.slice(0, 80) });
+        } catch (e) {
+          return NextResponse.json({ ok: false, error: String(e) }, { status: 502 });
+        }
+      }
+      // Built-in Z.ai via SDK
       try {
         const zai = await ZAI.create();
         const c = await zai.chat.completions.create({

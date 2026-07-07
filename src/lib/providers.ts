@@ -25,6 +25,8 @@ export interface ProviderConfig {
   baseUrl: string;
   /** Whether an API key is required (false for local) */
   requiresKey: boolean;
+  /** Whether an API key is optional (shown even if not required) */
+  keyOptional?: boolean;
   /** Where the API key is typically obtained */
   keyHint: string;
   docsUrl: string;
@@ -43,15 +45,16 @@ export const PROVIDERS: Record<ProviderId, ProviderConfig> = {
   zai: {
     id: "zai",
     label: "Z.ai (GLM)",
-    description: "GLM-4.6 — built-in, no key needed",
-    baseUrl: "",
+    description: "GLM-4.6 — built-in or your own key",
+    baseUrl: "https://api.z.ai/api/paas/v4",
     requiresKey: false,
-    keyHint: "Already integrated",
+    keyOptional: true,
+    keyHint: "Optional — use your own Z.ai API key",
     docsUrl: "https://z.ai",
     defaultModel: "glm-4.6",
     models: ["glm-4.6", "glm-4.5", "glm-4-plus"],
     apiStyle: "openai",
-    baseUrlEditable: false,
+    baseUrlEditable: true,
     accent: "#22d3ee",
   },
   openai: {

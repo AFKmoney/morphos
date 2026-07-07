@@ -26,6 +26,7 @@ interface DragState {
 
 const MIN_W = 280;
 const MIN_H = 200;
+const TOP_BAR_HEIGHT = 48; // Windows can't go above this
 
 export function MorphWindowView({ win }: WindowProps) {
   const t = useT();
@@ -63,14 +64,22 @@ export function MorphWindowView({ win }: WindowProps) {
       rafRef.current = requestAnimationFrame(() => {
         if (st.mode === "move") {
           const nx = Math.max(-st.origW + 80, Math.min(window.innerWidth - 80, st.origX + dx));
-          const ny = Math.max(0, Math.min(window.innerHeight - 100, st.origY + dy));
+          const ny = Math.max(TOP_BAR_HEIGHT, Math.min(window.innerHeight - 100, st.origY + dy));
           updateGeometry(winIdRef.current, { x: nx, y: ny });
         } else {
           let nx = st.origX, ny = st.origY, nw = st.origW, nh = st.origH;
           if (st.mode.includes("e")) nw = Math.max(MIN_W, st.origW + dx);
           if (st.mode.includes("w")) { nw = Math.max(MIN_W, st.origW - dx); nx = st.origX + (st.origW - nw); }
           if (st.mode.includes("s")) nh = Math.max(MIN_H, st.origH + dy);
-          if (st.mode.includes("n")) { nh = Math.max(MIN_H, st.origH - dy); ny = st.origY + (st.origH - nh); }
+          if (st.mode.includes("n")) {
+            nh = Math.max(MIN_H, st.origH - dy);
+            ny = st.origY + (st.origH - nh);
+            // Don't let top edge go above the top bar
+            if (ny < TOP_BAR_HEIGHT) {
+              nh -= (TOP_BAR_HEIGHT - ny);
+              ny = TOP_BAR_HEIGHT;
+            }
+          }
           updateGeometry(winIdRef.current, { x: nx, y: ny, width: nw, height: nh });
         }
       });

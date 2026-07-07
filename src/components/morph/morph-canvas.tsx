@@ -48,7 +48,7 @@ export function MorphCanvas() {
           title: meta.label,
           subtitle: meta.description,
           x: Math.max(40, Math.min(w - width - 40, 80)),
-          y: Math.max(60, Math.min(h - height - 80, 100)),
+          y: Math.max(56, Math.min(h - height - 80, 80)),
           width,
           height,
         });

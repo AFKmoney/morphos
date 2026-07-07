@@ -124,6 +124,35 @@ function fallbackGenerate(prompt: string): string {
 
 async function callLLM(provider: ProviderPayload, systemPrompt: string, userPrompt: string): Promise<string> {
   if (provider.providerId === "zai") {
+    // If user provided a custom Z.ai API key, use direct fetch
+    if (provider.apiKey) {
+      const baseUrl = provider.baseUrl || "https://api.z.ai/api/paas/v4";
+      const model = provider.model || "glm-4.6";
+      const url = baseUrl.endsWith("/") ? `${baseUrl}chat/completions` : `${baseUrl}/chat/completions`;
+      const res = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${provider.apiKey}`,
+        },
+        body: JSON.stringify({
+          model,
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: userPrompt },
+          ],
+          temperature: 0.3,
+          max_tokens: 2000,
+        }),
+      });
+      if (!res.ok) {
+        const text = await res.text().catch(() => "");
+        throw new Error(`HTTP ${res.status}: ${text.slice(0, 200)}`);
+      }
+      const data = await res.json();
+      return data?.choices?.[0]?.message?.content ?? "";
+    }
+    // Built-in Z.ai via SDK
     const zai = await ZAI.create();
     const c = await zai.chat.completions.create({
       messages: [

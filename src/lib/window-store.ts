@@ -156,9 +156,9 @@ export const useWindowStore = create<WindowStore>((set, get) => ({
           maximized: true,
           prev: { x: w.x, y: w.y, width: w.width, height: w.height },
           x: 16,
-          y: 16,
+          y: 56, // below top bar (48px + 8px margin)
           width: window.innerWidth - 32,
-          height: window.innerHeight - 140,
+          height: window.innerHeight - 56 - 16, // top bar + bottom margin
         };
       }),
     })),
@@ -179,13 +179,13 @@ export const useWindowStore = create<WindowStore>((set, get) => ({
     set((s) => {
       const vw = window.innerWidth;
       const vh = window.innerHeight;
-      const top = 50;
-      const bottom = 90;
-      const usableH = vh - top - bottom;
+      const topBar = 48; // top bar height
+      const bottomMargin = 16;
+      const usableH = vh - topBar - bottomMargin;
       const halfW = (vw - 32) / 2;
       const halfH = usableH / 2;
       const baseX = 16;
-      const midY = 16 + 50; // below topbar
+      const midY = topBar + 8; // below top bar with margin
 
       const zones: Record<string, { x: number; y: number; width: number; height: number }> = {
         left: { x: baseX, y: midY, width: halfW, height: usableH },

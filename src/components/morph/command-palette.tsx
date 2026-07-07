@@ -73,13 +73,13 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
     const vh = window.innerHeight;
     const colWidth = Math.min(420, Math.max(280, Math.floor((vw - 80) / 3)));
     const baseX = 60 + col * (colWidth + 30);
-    const baseY = 80 + row * 220;
+    const baseY = 56 + row * 220;
     spawnWindow({
       type,
       title: t(`module.${type}`) !== `module.${type}` ? t(`module.${type}`) : meta.label,
       subtitle: meta.description,
       x: Math.max(20, Math.min(vw - def.width - 20, baseX)),
-      y: Math.max(60, Math.min(vh - def.height - 100, baseY)),
+      y: Math.max(56, Math.min(vh - def.height - 100, baseY)),
       width: def.width,
       height: def.height,
     });
