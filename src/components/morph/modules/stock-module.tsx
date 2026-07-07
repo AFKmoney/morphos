@@ -1,67 +1,118 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { TrendingUp, TrendingDown } from "lucide-react";
+import { useEffect, useState, useRef } from "react";
+import { TrendingUp, TrendingDown, Loader2, AlertCircle } from "lucide-react";
 
+// Real crypto symbols via CoinGecko (free, no API key)
 const SYMBOLS = [
-  { sym: "MORPH", name: "MorphOS", price: 184.32, base: 184.32 },
-  { sym: "ZAI", name: "Z.ai Holdings", price: 412.85, base: 412.85 },
-  { sym: "HOTSWP", name: "HotSwap Inc.", price: 67.41, base: 67.41 },
-  { sym: "NLDRX", name: "NeuralX", price: 234.18, base: 234.18 },
-  { sym: "SYNC", name: "SyncForge", price: 89.05, base: 89.05 },
-  { sym: "DRIFT", name: "Drift Labs", price: 156.72, base: 156.72 },
+  { id: "bitcoin", sym: "BTC", name: "Bitcoin" },
+  { id: "ethereum", sym: "ETH", name: "Ethereum" },
+  { id: "solana", sym: "SOL", name: "Solana" },
+  { id: "cardano", sym: "ADA", name: "Cardano" },
+  { id: "chainlink", sym: "LINK", name: "Chainlink" },
+  { id: "polkadot", sym: "DOT", name: "Polkadot" },
 ];
 
+interface Quote {
+  sym: string;
+  name: string;
+  price: number;
+  change24h: number;
+  history: number[];
+}
+
 export function StockModule() {
-  const [quotes, setQuotes] = useState(SYMBOLS);
+  const [quotes, setQuotes] = useState<Quote[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const historyRef = useRef<Record<string, number[]>>({});
 
   useEffect(() => {
-    const id = setInterval(() => {
-      setQuotes((prev) =>
-        prev.map((q) => {
-          const vol = 0.008;
-          const change = (Math.random() - 0.5) * vol * q.base;
-          const next = Math.max(1, q.price + change);
-          return { ...q, price: next };
-        })
-      );
-    }, 1200);
-    return () => clearInterval(id);
+    let active = true;
+
+    async function fetchPrices() {
+      try {
+        const ids = SYMBOLS.map(s => s.id).join(",");
+        const res = await fetch(`https://api.coingecko.com/api/v3/simple/price?ids=${ids}&vs_currencies=usd&include_24hr_change=true`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+
+        const newQuotes: Quote[] = SYMBOLS.map(s => {
+          const d = data[s.id];
+          const price = d?.usd ?? 0;
+          const change = d?.usd_24h_change ?? 0;
+          const hist = historyRef.current[s.sym] ?? [];
+          hist.push(price);
+          if (hist.length > 20) hist.shift();
+          historyRef.current[s.sym] = hist;
+          return { sym: s.sym, name: s.name, price, change24h: change, history: [...hist] };
+        });
+
+        if (active) {
+          setQuotes(newQuotes);
+          setLoading(false);
+          setError(null);
+        }
+      } catch (e) {
+        if (active) {
+          setError(e instanceof Error ? e.message : String(e));
+          setLoading(false);
+        }
+      }
+    }
+
+    fetchPrices();
+    const id = setInterval(fetchPrices, 15000);
+    return () => { active = false; clearInterval(id); };
   }, []);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <Loader2 className="w-6 h-6 text-cyan-400 animate-spin" />
+      </div>
+    );
+  }
+
+  if (error && quotes.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full text-rose-300 text-xs gap-2">
+        <AlertCircle className="w-6 h-6" />
+        <div>Failed to load prices</div>
+        <div className="text-[9px] text-white/40">{error}</div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col h-full p-3 gap-2">
       <div className="flex items-center justify-between text-[10px] text-white/40 px-1">
         <span className="flex items-center gap-1">
           <span className="w-1 h-1 rounded-full bg-emerald-400 live-dot" />
-          NYSE · temps réel (mock)
+          CoinGecko · live
         </span>
-        <span className="font-mono">{new Date().toLocaleTimeString("fr-FR")}</span>
+        <span className="font-mono">{new Date().toLocaleTimeString("en")}</span>
       </div>
+      {error && <div className="text-[9px] text-amber-400/60">Reconnecting…</div>}
       <div className="flex-1 space-y-1 overflow-y-auto thin-scroll">
         {quotes.map((q) => {
-          const delta = q.price - q.base;
-          const pct = (delta / q.base) * 100;
-          const up = delta >= 0;
+          const up = q.change24h >= 0;
           return (
-            <div
-              key={q.sym}
-              className="flex items-center gap-3 bg-black/30 border border-white/5 rounded-lg px-3 py-2"
-            >
+            <div key={q.sym} className="flex items-center gap-3 bg-black/30 border border-white/5 rounded-lg px-3 py-2">
               <div className="w-16">
                 <div className="font-mono text-sm text-white">{q.sym}</div>
                 <div className="text-[9px] text-white/40 truncate">{q.name}</div>
               </div>
               <div className="flex-1 h-7">
-                <MiniChart up={up} />
+                <MiniChart history={q.history} up={up} />
               </div>
               <div className="text-right">
                 <div className="font-mono text-sm text-white tabular-nums">
-                  ${q.price.toFixed(2)}
+                  ${q.price < 1 ? q.price.toFixed(4) : q.price.toLocaleString("en", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </div>
                 <div className={`text-[10px] flex items-center justify-end gap-0.5 ${up ? "text-emerald-400" : "text-rose-400"}`}>
                   {up ? <TrendingUp className="w-2.5 h-2.5" /> : <TrendingDown className="w-2.5 h-2.5" />}
-                  {up ? "+" : ""}{pct.toFixed(2)}%
+                  {up ? "+" : ""}{q.change24h.toFixed(2)}%
                 </div>
               </div>
             </div>
@@ -72,34 +123,22 @@ export function StockModule() {
   );
 }
 
-function MiniChart({ up }: { up: boolean }) {
-  const [bars, setBars] = useState<number[]>(
-    Array.from({ length: 20 }, () => 0.4 + Math.random() * 0.6)
-  );
-
-  useEffect(() => {
-    const id = setInterval(() => {
-      setBars((prev) => [...prev.slice(1), 0.3 + Math.random() * 0.7]);
-    }, 1000);
-    return () => clearInterval(id);
-  }, []);
-
+function MiniChart({ history, up }: { history: number[]; up: boolean }) {
   const color = up ? "#34d399" : "#f43f5e";
   const w = 100;
   const h = 28;
-  const step = w / (bars.length - 1);
-  const pts = bars.map((b, i) => `${i * step},${h - b * h}`).join(" ");
+
+  if (history.length < 2) return <svg width="100%" height={h} />;
+
+  const min = Math.min(...history);
+  const max = Math.max(...history);
+  const range = max - min || 1;
+  const step = w / (history.length - 1);
+  const pts = history.map((v, i) => `${i * step},${h - ((v - min) / range) * h}`).join(" ");
 
   return (
     <svg width="100%" height={h} viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none">
-      <polyline
-        points={pts}
-        fill="none"
-        stroke={color}
-        strokeWidth="1.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
+      <polyline points={pts} fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }

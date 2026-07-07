@@ -130,6 +130,7 @@ export function MorphWindowView({ win }: WindowProps) {
 
   return (
     <motion.div
+      data-window-id={win.id}
       initial={{ opacity: 0, scale: 0.85, y: 30 }}
       animate={{ opacity: 1, scale: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.85, y: 30 }}

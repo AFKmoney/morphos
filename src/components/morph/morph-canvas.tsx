@@ -16,6 +16,7 @@ const SettingsPanel = dynamic(() => import("./settings-panel").then(m => ({ defa
 const BootSequence = dynamic(() => import("./boot-sequence").then(m => ({ default: m.BootSequence })), { ssr: false });
 const CommandPalette = dynamic(() => import("./command-palette").then(m => ({ default: m.CommandPalette })), { ssr: false });
 const WorkspaceManager = dynamic(() => import("./workspace-manager").then(m => ({ default: m.WorkspaceManager })), { ssr: false });
+const ContextMenu = dynamic(() => import("./context-menu").then(m => ({ default: m.ContextMenu })), { ssr: false });
 
 export function MorphCanvas() {
   const windows = useWindowStore((s) => s.windows);
@@ -86,6 +87,7 @@ export function MorphCanvas() {
         <SettingsPanel />
         <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
         <WorkspaceManager open={workspacesOpen} onClose={() => setWorkspacesOpen(false)} />
+        <ContextMenu />
 
         <div className="fixed bottom-4 right-4 z-30 text-[9px] text-white/30 font-mono hidden lg:block">
           <div>⌘K palette · ⌘⇧S workspaces</div>

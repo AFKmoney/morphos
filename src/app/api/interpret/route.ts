@@ -292,13 +292,18 @@ export async function POST(req: NextRequest) {
     }
 
     const systemPrompt = buildSystemPrompt(lang);
-    
+
     // Build context injection — tells the LLM what's currently on screen
     const contextStr = context.activeWindows && context.activeWindows.length > 0
       ? `\n\n--- CURRENT STATE ---\nActive windows on screen (${context.activeWindows.length}):\n${context.activeWindows.map((w, i) => `  ${i + 1}. ${w.title} (${w.type})`).join("\n")}\n\nThe user can see these windows. When they say "this", "that", "it", they may be referring to one of these. If they ask to modify or replace something, check if it matches an active window.`
       : `\n\n--- CURRENT STATE ---\nNo windows currently open. This is a fresh session.`;
-    
-    const fullSystemPrompt = systemPrompt + contextStr;
+
+    // Inject AI memory (persistent user preferences/facts)
+    const memoryStr = body.memory
+      ? `\n\n${body.memory}`
+      : "";
+
+    const fullSystemPrompt = systemPrompt + contextStr + memoryStr;
     
     const messages = [
       { role: "system", content: fullSystemPrompt },

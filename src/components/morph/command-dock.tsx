@@ -8,6 +8,7 @@ import { Sparkles, Send, X, Layers, Zap, Hexagon, ChevronUp } from "lucide-react
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/use-t";
 import { useSettings, buildProviderPayload } from "@/lib/settings-store";
+import { useAIContext } from "@/lib/ai-context-store";
 
 const MODULE_SIZES: Record<string, { width: number; height: number }> = {
   chat: { width: 460, height: 560 },
@@ -59,6 +60,8 @@ export function CommandDock() {
   const restoreWindow = useWindowStore((s) => s.restoreWindow);
   const [showPanel, setShowPanel] = useState(false);
   const language = useSettings((s) => s.language);
+  const aiMemory = useAIContext((s) => s.getSystemContext());
+  const addRecentModule = useAIContext((s) => s.addRecentModule);
 
   const [input, setInput] = useState("");
   const taRef = useRef<HTMLTextAreaElement>(null);
@@ -123,6 +126,7 @@ export function CommandDock() {
             activeWindows: windows.filter(w => !w.minimized).map(w => ({ type: w.type, title: w.title })),
             totalWindows: windows.length,
           },
+          memory: aiMemory,
         }),
       });
       const data = await res.json();
@@ -208,6 +212,7 @@ export function CommandDock() {
         code: customCode,
         prompt: data.prompt,
       });
+      addRecentModule(data.moduleType);
       hideSpawnPreview();
     } catch (e) {
       addChatMessage({ role: "assistant", content: t("chat.fail") });

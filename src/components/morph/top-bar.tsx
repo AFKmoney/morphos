@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useWindowStore } from "@/lib/window-store";
 import { MODULE_REGISTRY, getModuleMeta } from "./module-registry";
@@ -45,6 +45,14 @@ function getDefaultSize(type: string) {
 export function TopBar({ onOpenWorkspaces }: { onOpenWorkspaces: () => void }) {
   const t = useT();
   const [paletteOpen, setPaletteOpen] = useState(false);
+
+  // Listen for context menu "open palette" event
+  useEffect(() => {
+    function onOpenPalette() { setPaletteOpen(true); }
+    window.addEventListener("morphos-open-palette", onOpenPalette);
+    return () => window.removeEventListener("morphos-open-palette", onOpenPalette);
+  }, []);
+
   const windows = useWindowStore((s) => s.windows);
   const spawnWindow = useWindowStore((s) => s.spawnWindow);
   const closeAll = useWindowStore((s) => s.closeAll);
