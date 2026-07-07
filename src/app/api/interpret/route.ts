@@ -285,14 +285,23 @@ export async function POST(req: NextRequest) {
     const history: { role: string; content: string }[] = Array.isArray(body.history) ? body.history : [];
     const lang: "en" | "fr" = body.language === "fr" ? "fr" : "en";
     const provider: ProviderPayload = body.provider ?? { providerId: "zai", apiKey: "", baseUrl: "", model: "" };
+    const context: { activeWindows?: { type: string; title: string }[]; totalWindows?: number } = body.context ?? {};
 
     if (!prompt) {
       return NextResponse.json({ error: "missing prompt" }, { status: 400 });
     }
 
     const systemPrompt = buildSystemPrompt(lang);
+    
+    // Build context injection — tells the LLM what's currently on screen
+    const contextStr = context.activeWindows && context.activeWindows.length > 0
+      ? `\n\n--- CURRENT STATE ---\nActive windows on screen (${context.activeWindows.length}):\n${context.activeWindows.map((w, i) => `  ${i + 1}. ${w.title} (${w.type})`).join("\n")}\n\nThe user can see these windows. When they say "this", "that", "it", they may be referring to one of these. If they ask to modify or replace something, check if it matches an active window.`
+      : `\n\n--- CURRENT STATE ---\nNo windows currently open. This is a fresh session.`;
+    
+    const fullSystemPrompt = systemPrompt + contextStr;
+    
     const messages = [
-      { role: "system", content: systemPrompt },
+      { role: "system", content: fullSystemPrompt },
       ...history.slice(-6).map((m) => ({ role: m.role, content: m.content })),
       { role: "user", content: prompt },
     ];

@@ -1,6 +1,7 @@
 "use client";
 
 import { create } from "zustand";
+import { persist, createJSONStorage } from "zustand/middleware";
 
 export type ModuleType =
   | "chat" | "monitor" | "dashboard" | "terminal" | "kanban"
@@ -24,9 +25,7 @@ export interface MorphWindow {
   maximized: boolean;
   prev?: { x: number; y: number; width: number; height: number };
   config?: Record<string, unknown>;
-  /** For custom AI-generated modules: the generated TSX code */
   code?: string;
-  /** The natural-language prompt that created this window (if any) */
   prompt?: string;
   createdAt: number;
 }
@@ -80,182 +79,216 @@ interface WindowStore {
   saveWorkspace: (name: string) => void;
   loadWorkspace: (id: string) => void;
   deleteWorkspace: (id: string) => void;
+  clearAll: () => void; // Factory reset — clears windows, chat, workspaces
 }
 
 let idCounter = 0;
 const genId = () => `w-${Date.now().toString(36)}-${(idCounter++).toString(36)}`;
 
-export const useWindowStore = create<WindowStore>((set, get) => ({
-  windows: [],
-  chatMessages: [
-    {
-      id: "welcome",
-      role: "assistant",
-      content:
-        "Hey. I'm MorphOS — an interface that rewrites itself. Tell me what you need and I'll spawn the right module. Try: \"become a system monitor\", \"add a sales dashboard\", \"open a terminal\", \"create a pomodoro timer\", or describe anything and I'll generate a custom module on the fly.",
-      ts: Date.now(),
-    },
-  ],
-  activeId: null,
-  zCounter: 10,
-  isInterpreting: false,
-  spawnPreview: null,
-  workspaces: [],
-
-  spawnWindow: (w) => {
-    const id = genId();
-    const z = get().zCounter + 1;
-    const win: MorphWindow = {
-      id,
-      minimized: false,
-      maximized: false,
-      z,
-      createdAt: Date.now(),
-      ...w,
-    };
-    set((s) => ({
-      windows: [...s.windows, win],
-      zCounter: z,
-      activeId: id,
-    }));
-    return id;
-  },
-
-  closeWindow: (id) =>
-    set((s) => ({ windows: s.windows.filter((w) => w.id !== id) })),
-
-  focusWindow: (id) =>
-    set((s) => {
-      const z = s.zCounter + 1;
-      return {
-        zCounter: z,
-        activeId: id,
-        windows: s.windows.map((w) => (w.id === id ? { ...w, z, minimized: false } : w)),
-      };
-    }),
-
-  updateGeometry: (id, geo) =>
-    set((s) => ({
-      windows: s.windows.map((w) => (w.id === id ? { ...w, ...geo } : w)),
-    })),
-
-  minimizeWindow: (id) =>
-    set((s) => ({
-      windows: s.windows.map((w) => (w.id === id ? { ...w, minimized: true } : w)),
-    })),
-
-  toggleMaximize: (id) =>
-    set((s) => ({
-      windows: s.windows.map((w) => {
-        if (w.id !== id) return w;
-        if (w.maximized && w.prev) {
-          return { ...w, maximized: false, ...w.prev, prev: undefined };
-        }
-        return {
-          ...w,
-          maximized: true,
-          prev: { x: w.x, y: w.y, width: w.width, height: w.height },
-          x: 16,
-          y: 56, // below top bar (48px + 8px margin)
-          width: window.innerWidth - 32,
-          height: window.innerHeight - 56 - 16, // top bar + bottom margin
-        };
-      }),
-    })),
-
-  restoreWindow: (id) =>
-    set((s) => ({
-      windows: s.windows.map((w) => (w.id === id ? { ...w, minimized: false } : w)),
-    })),
-
-  updateConfig: (id, config) =>
-    set((s) => ({
-      windows: s.windows.map((w) =>
-        w.id === id ? { ...w, config: { ...w.config, ...config } } : w
-      ),
-    })),
-
-  snapWindow: (id, zone) =>
-    set((s) => {
-      const vw = window.innerWidth;
-      const vh = window.innerHeight;
-      const topBar = 48; // top bar height
-      const bottomMargin = 16;
-      const usableH = vh - topBar - bottomMargin;
-      const halfW = (vw - 32) / 2;
-      const halfH = usableH / 2;
-      const baseX = 16;
-      const midY = topBar + 8; // below top bar with margin
-
-      const zones: Record<string, { x: number; y: number; width: number; height: number }> = {
-        left: { x: baseX, y: midY, width: halfW, height: usableH },
-        right: { x: baseX + halfW, y: midY, width: halfW, height: usableH },
-        top: { x: baseX, y: midY, width: vw - 32, height: halfH },
-        bottom: { x: baseX, y: midY + halfH, width: vw - 32, height: halfH },
-        tl: { x: baseX, y: midY, width: halfW, height: halfH },
-        tr: { x: baseX + halfW, y: midY, width: halfW, height: halfH },
-        bl: { x: baseX, y: midY + halfH, width: halfW, height: halfH },
-        br: { x: baseX + halfW, y: midY + halfH, width: halfW, height: halfH },
-      };
-      const geo = zones[zone];
-      return {
-        windows: s.windows.map((w) =>
-          w.id === id ? { ...w, ...geo, maximized: false, prev: undefined } : w
-        ),
-      };
-    }),
-
-  addChatMessage: (m) =>
-    set((s) => ({
-      chatMessages: [...s.chatMessages, { ...m, id: genId(), ts: Date.now() }],
-    })),
-
-  setInterpreting: (v) => set({ isInterpreting: v }),
-
-  showSpawnPreview: (data) =>
-    set({
-      spawnPreview: { visible: true, ...data },
-    }),
-
-  hideSpawnPreview: () => set({ spawnPreview: null }),
-
-  closeAll: () => set({ windows: [], activeId: null }),
-
-  saveWorkspace: (name) =>
-    set((s) => ({
-      workspaces: [
-        ...s.workspaces,
+export const useWindowStore = create<WindowStore>()(
+  persist(
+    (set, get) => ({
+      windows: [],
+      chatMessages: [
         {
-          id: genId(),
-          name,
-          windows: s.windows.map((w) => ({ ...w, prev: undefined })),
-          createdAt: Date.now(),
+          id: "welcome",
+          role: "assistant",
+          content:
+            "Hey. I'm MorphOS — an interface that rewrites itself. Tell me what you need and I'll spawn the right module. Try: \"become a system monitor\", \"add a sales dashboard\", \"open a terminal\", \"create a pomodoro timer\", or describe anything and I'll generate a custom module on the fly.",
+          ts: Date.now(),
         },
       ],
-    })),
+      activeId: null,
+      zCounter: 10,
+      isInterpreting: false,
+      spawnPreview: null,
+      workspaces: [],
 
-  loadWorkspace: (id) =>
-    set((s) => {
-      const ws = s.workspaces.find((w) => w.id === id);
-      if (!ws) return {};
-      const zBase = s.zCounter;
-      return {
-        windows: ws.windows.map((w, i) => ({
-          ...w,
-          id: genId(),
-          z: zBase + i + 1,
+      spawnWindow: (w) => {
+        const id = genId();
+        const z = get().zCounter + 1;
+        const win: MorphWindow = {
+          id,
           minimized: false,
           maximized: false,
-          prev: undefined,
+          z,
           createdAt: Date.now(),
-        })),
-        zCounter: zBase + ws.windows.length,
-        activeId: null,
-      };
-    }),
+          ...w,
+        };
+        set((s) => ({
+          windows: [...s.windows, win],
+          zCounter: z,
+          activeId: id,
+        }));
+        return id;
+      },
 
-  deleteWorkspace: (id) =>
-    set((s) => ({
-      workspaces: s.workspaces.filter((w) => w.id !== id),
-    })),
-}));
+      closeWindow: (id) =>
+        set((s) => ({ windows: s.windows.filter((w) => w.id !== id) })),
+
+      focusWindow: (id) =>
+        set((s) => {
+          const z = s.zCounter + 1;
+          return {
+            zCounter: z,
+            activeId: id,
+            windows: s.windows.map((w) => (w.id === id ? { ...w, z, minimized: false } : w)),
+          };
+        }),
+
+      updateGeometry: (id, geo) =>
+        set((s) => ({
+          windows: s.windows.map((w) => (w.id === id ? { ...w, ...geo } : w)),
+        })),
+
+      minimizeWindow: (id) =>
+        set((s) => ({
+          windows: s.windows.map((w) => (w.id === id ? { ...w, minimized: true } : w)),
+        })),
+
+      toggleMaximize: (id) =>
+        set((s) => ({
+          windows: s.windows.map((w) => {
+            if (w.id !== id) return w;
+            if (w.maximized && w.prev) {
+              return { ...w, maximized: false, ...w.prev, prev: undefined };
+            }
+            return {
+              ...w,
+              maximized: true,
+              prev: { x: w.x, y: w.y, width: w.width, height: w.height },
+              x: 16,
+              y: 56,
+              width: window.innerWidth - 32,
+              height: window.innerHeight - 56 - 16,
+            };
+          }),
+        })),
+
+      restoreWindow: (id) =>
+        set((s) => ({
+          windows: s.windows.map((w) => (w.id === id ? { ...w, minimized: false } : w)),
+        })),
+
+      updateConfig: (id, config) =>
+        set((s) => ({
+          windows: s.windows.map((w) =>
+            w.id === id ? { ...w, config: { ...w.config, ...config } } : w
+          ),
+        })),
+
+      snapWindow: (id, zone) =>
+        set((s) => {
+          const vw = window.innerWidth;
+          const vh = window.innerHeight;
+          const topBar = 48;
+          const bottomMargin = 16;
+          const usableH = vh - topBar - bottomMargin;
+          const halfW = (vw - 32) / 2;
+          const halfH = usableH / 2;
+          const baseX = 16;
+          const midY = topBar + 8;
+
+          const zones: Record<string, { x: number; y: number; width: number; height: number }> = {
+            left: { x: baseX, y: midY, width: halfW, height: usableH },
+            right: { x: baseX + halfW, y: midY, width: halfW, height: usableH },
+            top: { x: baseX, y: midY, width: vw - 32, height: halfH },
+            bottom: { x: baseX, y: midY + halfH, width: vw - 32, height: halfH },
+            tl: { x: baseX, y: midY, width: halfW, height: halfH },
+            tr: { x: baseX + halfW, y: midY, width: halfW, height: halfH },
+            bl: { x: baseX, y: midY + halfH, width: halfW, height: halfH },
+            br: { x: baseX + halfW, y: midY + halfH, width: halfW, height: halfH },
+          };
+          const geo = zones[zone];
+          return {
+            windows: s.windows.map((w) =>
+              w.id === id ? { ...w, ...geo, maximized: false, prev: undefined } : w
+            ),
+          };
+        }),
+
+      addChatMessage: (m) =>
+        set((s) => ({
+          chatMessages: [...s.chatMessages, { ...m, id: genId(), ts: Date.now() }],
+        })),
+
+      setInterpreting: (v) => set({ isInterpreting: v }),
+
+      showSpawnPreview: (data) =>
+        set({
+          spawnPreview: { visible: true, ...data },
+        }),
+
+      hideSpawnPreview: () => set({ spawnPreview: null }),
+
+      closeAll: () => set({ windows: [], activeId: null }),
+
+      saveWorkspace: (name) =>
+        set((s) => ({
+          workspaces: [
+            ...s.workspaces,
+            {
+              id: genId(),
+              name,
+              windows: s.windows.map((w) => ({ ...w, prev: undefined })),
+              createdAt: Date.now(),
+            },
+          ],
+        })),
+
+      loadWorkspace: (id) =>
+        set((s) => {
+          const ws = s.workspaces.find((w) => w.id === id);
+          if (!ws) return {};
+          const zBase = s.zCounter;
+          return {
+            windows: ws.windows.map((w, i) => ({
+              ...w,
+              id: genId(),
+              z: zBase + i + 1,
+              minimized: false,
+              maximized: false,
+              prev: undefined,
+              createdAt: Date.now(),
+            })),
+            zCounter: zBase + ws.windows.length,
+            activeId: null,
+          };
+        }),
+
+      deleteWorkspace: (id) =>
+        set((s) => ({
+          workspaces: s.workspaces.filter((w) => w.id !== id),
+        })),
+
+      clearAll: () =>
+        set({
+          windows: [],
+          chatMessages: [
+            {
+              id: "welcome",
+              role: "assistant",
+              content: "Hey. I'm MorphOS — an interface that rewrites itself. Tell me what you need and I'll spawn the right module.",
+              ts: Date.now(),
+            },
+          ],
+          activeId: null,
+          zCounter: 10,
+          isInterpreting: false,
+          spawnPreview: null,
+          workspaces: [],
+        }),
+    }),
+    {
+      name: "morphos-window-store",
+      storage: createJSONStorage(() => localStorage),
+      // Persist windows, chatMessages, workspaces — NOT transient state
+      partialize: (s) => ({
+        windows: s.windows,
+        chatMessages: s.chatMessages,
+        workspaces: s.workspaces,
+        zCounter: s.zCounter,
+      }),
+    }
+  )
+);

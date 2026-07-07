@@ -3,18 +3,19 @@
 import { useEffect, useRef, useState } from "react";
 import { useT } from "@/lib/use-t";
 import { useSettings } from "@/lib/settings-store";
+import { useModulePersist } from "@/lib/module-state-store";
 
 interface Line { kind: "in" | "out" | "sys"; text: string; }
 
 export function TerminalModule() {
   const t = useT();
   const language = useSettings((s) => s.language);
-  const [lines, setLines] = useState<Line[]>([
+  const [lines, setLines] = useModulePersist<Line[]>("terminal:lines", [
     { kind: "sys", text: t("terminal.welcome") },
     { kind: "sys", text: t("terminal.hotreload") },
   ]);
   const [input, setInput] = useState("");
-  const [history, setHistory] = useState<string[]>([]);
+  const [history, setHistory] = useModulePersist<string[]>("terminal:history", []);
   const [hIdx, setHIdx] = useState(-1);
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);

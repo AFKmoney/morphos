@@ -114,7 +114,16 @@ export function CommandDock() {
       const res = await fetch("/api/interpret", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt: text, history, language, provider: buildProviderPayload() }),
+        body: JSON.stringify({
+          prompt: text,
+          history,
+          language,
+          provider: buildProviderPayload(),
+          context: {
+            activeWindows: windows.filter(w => !w.minimized).map(w => ({ type: w.type, title: w.title })),
+            totalWindows: windows.length,
+          },
+        }),
       });
       const data = await res.json();
 

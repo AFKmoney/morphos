@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Plus, X, GripVertical } from "lucide-react";
+import { useModulePersist } from "@/lib/module-state-store";
 
 interface Card { id: string; title: string; tag?: string; }
 interface Column { id: string; title: string; color: string; cards: Card[]; }
@@ -37,7 +38,7 @@ const INITIAL: Column[] = [
 ];
 
 export function KanbanModule() {
-  const [cols, setCols] = useState(INITIAL);
+  const [cols, setCols] = useModulePersist<Column[]>("kanban:columns", INITIAL);
   const [dragId, setDragId] = useState<string | null>(null);
   const [dragFrom, setDragFrom] = useState<string | null>(null);
   const [adding, setAdding] = useState<string | null>(null);

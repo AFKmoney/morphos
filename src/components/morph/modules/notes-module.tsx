@@ -3,6 +3,7 @@
 import { useState, useMemo } from "react";
 import ReactMarkdown from "react-markdown";
 import { Eye, Edit3, FileText } from "lucide-react";
+import { useModulePersist } from "@/lib/module-state-store";
 
 const DEFAULT_MD = `# Notes — projet MorphOS
 
@@ -34,7 +35,7 @@ const morph = createMorph({
 `;
 
 export function NotesModule() {
-  const [md, setMd] = useState(DEFAULT_MD);
+  const [md, setMd] = useModulePersist<string>("notes:content", DEFAULT_MD);
   const [mode, setMode] = useState<"edit" | "preview">("preview");
 
   const rendered = useMemo(() => md, [md]);

@@ -46,6 +46,7 @@ interface SettingsState {
   openSettings: () => void;
   closeSettings: () => void;
   resetAll: () => void;
+  factoryReset: () => void; // Clears everything EXCEPT apiKeys, baseUrls, models
 }
 
 export const useSettings = create<SettingsState>()(
@@ -90,6 +91,28 @@ export const useSettings = create<SettingsState>()(
           hasSeenBoot: false,
           settingsOpen: false,
         }),
+      factoryReset: () => {
+        // Clear everything in settings EXCEPT apiKeys, baseUrls, models
+        set((s) => ({
+          providerId: "zai",
+          apiKeys: s.apiKeys, // KEEP
+          baseUrls: s.baseUrls, // KEEP
+          models: s.models, // KEEP
+          language: "en",
+          theme: "cyan",
+          enableSound: false,
+          enableBoot: true,
+          hasSeenBoot: false,
+          settingsOpen: false,
+        }));
+        // Also clear window store and module states
+        if (typeof window !== "undefined") {
+          localStorage.removeItem("morphos-window-store");
+          localStorage.removeItem("morphos-module-states");
+          // Reload to apply
+          window.location.reload();
+        }
+      },
     }),
     {
       name: "morphos-settings",

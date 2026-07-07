@@ -109,6 +109,10 @@ export function ChatModule({}: ChatModuleProps) {
           history,
           language,
           provider: buildProviderPayload(),
+          context: {
+            activeWindows: windows.filter(w => !w.minimized).map(w => ({ type: w.type, title: w.title })),
+            totalWindows: windows.length,
+          },
         }),
       });
       const data = await res.json();
