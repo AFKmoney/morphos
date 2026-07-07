@@ -9,6 +9,7 @@ import { Send, Sparkles, Zap } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/use-t";
 import { useSettings, buildProviderPayload } from "@/lib/settings-store";
+import { useAIContext } from "@/lib/ai-context-store";
 
 interface ChatModuleProps {
   windowId?: string;
@@ -58,6 +59,8 @@ export function ChatModule({}: ChatModuleProps) {
   const windows = useWindowStore((s) => s.windows);
   const hideSpawnPreview = useWindowStore((s) => s.hideSpawnPreview);
   const language = useSettings((s) => s.language);
+  const aiMemory = useAIContext((s) => s.getSystemContext());
+  const addRecentModule = useAIContext((s) => s.addRecentModule);
 
   const [input, setInput] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -113,6 +116,7 @@ export function ChatModule({}: ChatModuleProps) {
             activeWindows: windows.filter(w => !w.minimized).map(w => ({ type: w.type, title: w.title })),
             totalWindows: windows.length,
           },
+          memory: aiMemory,
         }),
       });
       const data = await res.json();
@@ -212,6 +216,7 @@ export function ChatModule({}: ChatModuleProps) {
         code: customCode,
         prompt: data.prompt,
       });
+      addRecentModule(data.moduleType);
 
       hideSpawnPreview();
     } catch (e) {
