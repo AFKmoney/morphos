@@ -59,8 +59,10 @@ export function MusicModule() {
     audio.addEventListener("waiting", () => setLoading(true));
     audio.addEventListener("canplay", () => setLoading(false));
 
-    setLoading(true);
-    audio.load();
+    queueMicrotask(() => {
+      setLoading(true);
+      audio.load();
+    });
 
     return () => {
       audio.removeEventListener("loadedmetadata", onLoaded);

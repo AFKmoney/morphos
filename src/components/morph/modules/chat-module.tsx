@@ -71,16 +71,18 @@ export function ChatModule({}: ChatModuleProps) {
   useEffect(() => {
     if (language !== welcomeSeeded) {
       // Replace welcome message if it's the only one and matches old language
-      setWelcomeSeeded(language);
-      useWindowStore.setState((s) => {
-        if (s.chatMessages.length === 1 && s.chatMessages[0].id === "welcome") {
-          return {
-            chatMessages: [
-              { ...s.chatMessages[0], content: t("chat.welcome") },
-            ],
-          };
-        }
-        return {};
+      queueMicrotask(() => {
+        setWelcomeSeeded(language);
+        useWindowStore.setState((s) => {
+          if (s.chatMessages.length === 1 && s.chatMessages[0].id === "welcome") {
+            return {
+              chatMessages: [
+                { ...s.chatMessages[0], content: t("chat.welcome") },
+              ],
+            };
+          }
+          return {};
+        });
       });
     }
   }, [language, welcomeSeeded, t]);

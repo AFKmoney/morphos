@@ -14,13 +14,13 @@ export function SpawnOverlay() {
 
   useEffect(() => {
     if (!preview) {
-      setVisibleLines([]);
+      queueMicrotask(() => setVisibleLines([]));
       return;
     }
     const codeLines: string[] = Array.isArray(preview.code)
       ? preview.code.map((l) => (typeof l === "string" ? l : String(l ?? "")))
       : [];
-    setVisibleLines([]);
+    queueMicrotask(() => setVisibleLines([]));
     let i = 0;
     const id = setInterval(() => {
       if (i >= codeLines.length) {
