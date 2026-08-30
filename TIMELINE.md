@@ -120,7 +120,7 @@
 - Zustand avec persist pour la gestion d'état
 - Architecture solide et bien conçue
 
-### 🔧 Prochaines étapes
+### ✅ Prochaines étapes (à faire)
 - [ ] Corriger les vulnérabilités npm audit (si possible sans breaking changes)
 - [ ] Vérifier la compatibilité avec Next.js 16.3.3
 - [ ] Tester toutes les API routes (interpret, interpret-stream, generate-module, generate-image, test-provider)
@@ -128,6 +128,43 @@
 - [ ] Tester la génération de modules personnalisés
 - [ ] Vérifier la persistance des données
 - [ ] Tester les workspaces (save/load)
+
+---
+
+## Iteration 2 - [2025-08-30] - Commit des corrections
+
+### ✅ Choses faites
+- **[08:10 UTC]** - Commit des corrections sur la branche `vibe/audit-fix-0a7bca`
+- **[08:10 UTC]** - Push vers GitHub avec création de la branche distante
+- **[08:10 UTC]** - PR disponible à: https://github.com/AFKmoney/morphos/pull/new/vibe/audit-fix-0a7bca
+
+### 📦 Changements commités
+1. **package.json**
+   - Changement du port dev de 3000 à 5000
+   - Simplification du script build
+   - Correction du script start (node au lieu de bun)
+
+2. **Fichiers de modules** (6 fichiers)
+   - Correction des warnings setState in useEffect avec queueMicrotask()
+   - chat-module.tsx, music-module.tsx, weather-module.tsx
+   - spawn-overlay.tsx, carousel.tsx, use-mobile.ts
+
+3. **Nouveaux fichiers**
+   - TIMELINE.md (ce fichier)
+   - package-lock.json (généré par npm install)
+
+### 🎯 Résumé de l'itération 1
+- **Problèmes identifiés**: 6 warnings lint + 1 bug build + 1 bug start + 9 vulnérabilités npm
+- **Problèmes corrigés**: 6 warnings lint + 1 bug build + 1 bug start = 8/10
+- **Problèmes restants**: 9 vulnérabilités npm (à traiter dans une prochaine itération)
+- **Tests**: Build OK, Lint OK, Serveur démarre OK
+
+### 📊 Métriques
+- Temps total: ~36 minutes
+- Fichiers modifiés: 7
+- Fichiers ajoutés: 2
+- Commit: e51f308
+- Branche: vibe/audit-fix-0a7bca
 
 ---
 
