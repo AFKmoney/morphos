@@ -70,8 +70,10 @@ export function WeatherModule() {
       }
     }
 
-    setLoading(true);
-    load();
+    queueMicrotask(() => {
+      setLoading(true);
+      load();
+    });
     return () => { cancelled = true; };
   }, [activeIdx]);
 

@@ -1,0 +1,166 @@
+{
+  "$schema": "https://schema.tauri.app/capabilities/2.0.0.json",
+  "identifier": "morphos-desktop",
+  "description": "MorphOS Desktop Application Capabilities",
+  "permissions": {
+    "fs": {
+      "description": "File system access for plugins and user data",
+      "allow": [
+        {
+          "id": "morphos-data",
+          "description": "Access to MorphOS application data",
+          "allow": [
+            "$APPDATA/**",
+            "$LOCALAPPDATA/**",
+            "$HOME/.morphos/**",
+            "$HOME/.config/morphos/**"
+          ]
+        },
+        {
+          "id": "user-documents",
+          "description": "Access to user documents",
+          "allow": [
+            "$HOME/Documents/**",
+            "$HOME/Downloads/**"
+          ]
+        }
+      ]
+    },
+    "shell": {
+      "description": "Shell commands for opening external applications",
+      "allow": [
+        {
+          "id": "open-browser",
+          "description": "Open URLs in default browser",
+          "allow": ["open"]
+        },
+        {
+          "id": "open-editor",
+          "description": "Open files in external editors",
+          "allow": ["open"]
+        }
+      ]
+    },
+    "http": {
+      "description": "HTTP requests for APIs",
+      "allow": [
+        {
+          "id": "morphos-apis",
+          "description": "Access to MorphOS required APIs",
+          "allow": [
+            "http://localhost:*",
+            "https://localhost:*",
+            "https://api.coingecko.com/*",
+            "https://api.open-meteo.com/*",
+            "https://cdn.jsdelivr.net/*"
+          ]
+        }
+      ]
+    },
+    "websocket": {
+      "description": "WebSocket connections for realtime collaboration",
+      "allow": [
+        {
+          "id": "local-websocket",
+          "description": "Local WebSocket connections",
+          "allow": [
+            "ws://localhost:*",
+            "wss://localhost:*",
+            "ws://127.0.0.1:*",
+            "wss://127.0.0.1:*"
+          ]
+        }
+      ]
+    },
+    "dialog": {
+      "description": "File dialogs for opening and saving files",
+      "allow": [
+        {
+          "id": "file-dialogs",
+          "description": "All file dialog operations",
+          "allow": ["open", "save", "pick"]
+        }
+      ]
+    },
+    "notification": {
+      "description": "System notifications",
+      "allow": [
+        {
+          "id": "system-notifications",
+          "description": "Show system notifications",
+          "allow": ["show"]
+        }
+      ]
+    },
+    "clipboard": {
+      "description": "Clipboard access for copy/paste",
+      "allow": [
+        {
+          "id": "clipboard-access",
+          "description": "Full clipboard access",
+          "allow": ["read", "write", "readText", "writeText", "readImage", "writeImage"]
+        }
+      ]
+    },
+    "window": {
+      "description": "Window management",
+      "allow": [
+        {
+          "id": "window-management",
+          "description": "Full window management",
+          "allow": ["create", "close", "minimize", "maximize", "restore", "hide", "show", "setDecorations", "setSize", "setPosition", "setTitle", "setFullscreen", "setResizable", "setFocus"]
+        }
+      ]
+    },
+    "globalShortcut": {
+      "description": "Global keyboard shortcuts",
+      "allow": [
+        {
+          "id": "app-shortcuts",
+          "description": "Application keyboard shortcuts",
+          "allow": ["register", "unregister", "registerAll", "unregisterAll"]
+        }
+      ]
+    },
+    "os": {
+      "description": "Operating system information",
+      "allow": [
+        {
+          "id": "os-info",
+          "description": "Read OS information",
+          "allow": ["platform", "arch", "family", "version"]
+        }
+      ]
+    },
+    "path": {
+      "description": "Path operations",
+      "allow": [
+        {
+          "id": "path-ops",
+          "description": "All path operations",
+          "allow": ["resolve", "normalize", "join", "dirname", "filename", "extension", "basename", "isAbsolute", "isRelative", "separator"]
+        }
+      ]
+    },
+    "process": {
+      "description": "Process management",
+      "allow": [
+        {
+          "id": "process-management",
+          "description": "Process control",
+          "allow": ["relaunch", "exit"]
+        }
+      ]
+    },
+    "updater": {
+      "description": "Application updates",
+      "allow": [
+        {
+          "id": "auto-updates",
+          "description": "Automatic application updates",
+          "allow": ["check", "download", "install"]
+        }
+      ]
+    }
+  }
+}
