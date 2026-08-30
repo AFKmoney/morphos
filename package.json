@@ -10,7 +10,12 @@
     "db:push": "prisma db push",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
-    "db:reset": "prisma migrate reset"
+    "db:reset": "prisma migrate reset",
+    "tauri:dev": "tauri dev",
+    "tauri:build": "tauri build",
+    "tauri:start": "tauri start",
+    "tauri:info": "tauri info",
+    "tauri:init": "tauri init"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
