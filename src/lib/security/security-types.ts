@@ -866,7 +866,7 @@ export const DEFAULT_SYSTEM_PERMISSIONS: SystemPermission[] = [
 
 // ============ EXPORT ============
 
-export default {
+export {
   // Core Types
   PermissionId,
   RoleId,

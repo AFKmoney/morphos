@@ -921,7 +921,7 @@ if (typeof window !== 'undefined') {
 
 // ============ EXPORT ============
 
-export default {
+export {
   // Stores
   sessionsStore,
   usersStore,

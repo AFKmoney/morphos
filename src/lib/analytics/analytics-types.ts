@@ -571,7 +571,7 @@ export interface AlertAction {
 
 // ============ EXPORT ============
 
-export default {
+export {
   EventId,
   EventType,
   EventCategory,

@@ -470,7 +470,7 @@ if (typeof window !== 'undefined') {
 
 // ============ EXPORT ============
 
-export default {
+export {
   // Stores
   eventsStore,
   metricsStore,

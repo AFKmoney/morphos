@@ -811,7 +811,7 @@ export const DEFAULT_SYSTEM_THEME: SystemTheme = {
 
 // ============ EXPORT ============
 
-export default {
+export {
   // Core Types
   ThemeId,
   ThemeType,

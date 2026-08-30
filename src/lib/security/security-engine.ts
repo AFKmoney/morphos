@@ -1286,7 +1286,7 @@ export const securityManager = new SecurityManager();
 
 // ============ EXPORT ============
 
-export default {
+export {
   SecurityManager,
   securityManager,
 };

@@ -1387,7 +1387,7 @@ export const performanceManager = new PerformanceManager();
 
 // ============ EXPORT ============
 
-export default {
+export {
   PerformanceManager,
   performanceManager,
 };

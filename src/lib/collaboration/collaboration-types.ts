@@ -713,7 +713,7 @@ export const DEFAULT_SESSION_CONFIG: SessionConfig = {
 
 // ============ EXPORT ============
 
-export default {
+export {
   // Core Types
   CollaborationId,
   UserId,

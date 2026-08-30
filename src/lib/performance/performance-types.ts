@@ -741,7 +741,7 @@ export const DEFAULT_PERFORMANCE_SETTINGS: PerformanceSettings = {
 
 // ============ EXPORT ============
 
-export default {
+export {
   // Core Types
   MetricId,
   TaskId,

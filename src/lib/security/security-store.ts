@@ -863,7 +863,7 @@ if (typeof window !== 'undefined') {
 
 // ============ EXPORT ============
 
-export default {
+export {
   // Stores
   permissionsStore,
   rolesStore,

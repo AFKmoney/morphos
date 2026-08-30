@@ -560,7 +560,7 @@ if (typeof window !== 'undefined') {
 
 // ============ EXPORT ============
 
-export default {
+export {
   // Stores
   themesStore,
   variantsStore,

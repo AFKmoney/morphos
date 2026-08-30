@@ -1466,7 +1466,7 @@ export const collaborationManager = new CollaborationManager();
 
 // ============ EXPORT ============
 
-export default {
+export {
   CollaborationManager,
   collaborationManager,
 };

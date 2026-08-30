@@ -1034,7 +1034,7 @@ export const themeManager = new ThemeManager();
 
 // ============ EXPORT ============
 
-export default {
+export {
   ThemeManager,
   themeManager,
 };

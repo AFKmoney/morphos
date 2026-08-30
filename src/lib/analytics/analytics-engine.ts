@@ -1123,7 +1123,7 @@ export function generateAnalyticsId(): string {
 
 // ============ EXPORT ============
 
-export default {
+export {
   AnalyticsEngine,
   analyticsEngine,
   createEvent,
