@@ -7,6 +7,7 @@ import {
   FileText, Code2, CloudSun, Clock, Music4, Calculator, TrendingUp,
   Camera, Gauge, Timer, Brush, Regex, Braces, Palette, QrCode,
   Wrench, FolderTree, Globe, CalendarDays, PenTool, Sparkles, ImageIcon,
+  Puzzle,
 } from "lucide-react";
 
 const loadingFallback = () => (
@@ -48,6 +49,7 @@ const lazyComponents: Record<string, React.LazyExoticComponent<React.ComponentTy
   WhiteboardModule: dynamic(() => modulesPromise.then(m => ({ default: m.WhiteboardModule })), { loading: loadingFallback }),
   CustomModuleRenderer: dynamic(() => modulesPromise.then(m => ({ default: m.CustomModuleRenderer })), { loading: loadingFallback }),
   ImageGenModule: dynamic(() => modulesPromise.then(m => ({ default: m.ImageGenModule })), { loading: loadingFallback }),
+  PluginModule: dynamic(() => modulesPromise.then(m => ({ default: m.PluginModule })), { loading: loadingFallback }),
 };
 
 export interface ModuleMeta {
@@ -118,6 +120,7 @@ const INFO_MAP: Record<ModuleType, Omit<ModuleMeta, "component">> = {
   whiteboard: { type: "whiteboard", label: "Whiteboard", description: "Freehand drawing SVG", icon: PenTool, accent: "#c084fc" },
   custom: { type: "custom", label: "Custom AI", description: "AI-generated module", icon: Sparkles, accent: "#22d3ee", custom: true },
   imagegen: { type: "imagegen", label: "Image Gen", description: "AI image generation", icon: ImageIcon, accent: "#f472b6" },
+  plugin: { type: "plugin", label: "Plugins", description: "Plugin manager", icon: Puzzle, accent: "#c084fc" },
 };
 
 export function getModuleMeta(type: ModuleType): ModuleMeta {

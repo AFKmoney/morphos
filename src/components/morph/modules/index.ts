@@ -16,6 +16,7 @@ export { StockModule } from "./stock-module";
 export { CameraModule } from "./camera-module";
 export { MetricsModule } from "./metrics-module";
 export { CustomModuleRenderer } from "./custom-module";
+export { PluginModule } from "./plugin-module";
 
 // All extra modules from single file (reduces Turbopack memory)
 export { PomodoroModule, PaintModule, RegexModule, JsonModule, ColorPickerModule, QrModule, DevtoolsModule, BrowserModule, CalendarModule, WhiteboardModule } from "./extra-modules";
