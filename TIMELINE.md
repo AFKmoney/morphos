@@ -208,7 +208,74 @@
 
 ---
 
-## Iteration 3 - [2025-08-30] - Analyse des modules
+## Iteration 3 - [2025-08-30] - Analyse des modules et persistance
+
+### ✅ Choses faites
+
+- **[08:25 UTC]** - Analyse des 27 modules intégrés
+  - 15 modules principaux (fichiers individuels)
+  - 11 modules extra (dans extra-modules.tsx)
+  - 1 CustomModuleRenderer (génération dynamique)
+  - Tous utilisent des hooks React standard
+  - Aucun problème de compilation détecté
+
+- **[08:28 UTC]** - Vérification des appels API externes
+  - **StockModule**: CoinGecko API (https://api.coingecko.com) - FREE, pas de clé API
+  - **WeatherModule**: Open-Meteo API (https://api.open-meteo.com) - FREE, pas de clé API
+  - **MonitorModule**: Performance API (navigateur) - Natif
+  - **MetricsModule**: Performance API (navigateur) - Natif
+  - **FilesModule**: IndexedDB via VFS - Persistant
+  - **CustomModule**: Babel CDN (https://cdn.jsdelivr.net) - Chargement dynamique
+  - ✅ Toutes les APIs sont gratuites ou natives
+
+- **[08:30 UTC]** - Analyse de la persistance
+  - **localStorage** (via Zustand persist):
+    - WindowStore: windows, chatMessages, workspaces
+    - SettingsStore: provider configs, API keys, theme, language
+    - ModuleStateStore: states des modules
+    - AIContextStore: contexte IA
+  - **IndexedDB** (via VFS):
+    - DB_NAME: "morphos-vfs"
+    - STORE_NAME: "files"
+    - Structure: VFSNode avec path, name, type, content, children
+    - Fichiers par défaut: /home/notes.md, /home/welcome.txt, /home/projects/morphos.ts
+  - ✅ Double couche de persistance (localStorage + IndexedDB)
+
+- **[08:32 UTC]** - Analyse des workspaces
+  - Gestion via useWindowStore
+  - Actions: saveWorkspace, loadWorkspace, deleteWorkspace
+  - Stockage dans localStorage via Zustand persist
+  - ✅ Fonctionnalité complète
+
+- **[08:35 UTC]** - Vérification de la génération de modules custom
+  - Utilisation de @babel/standalone via CDN
+  - Transformation TSX → JS en runtime
+  - Sandbox via Function constructor
+  - Injection des hooks React (useState, useEffect, etc.)
+  - ✅ Système de génération fonctionnel
+
+- **[08:38 UTC]** - Tests de build et lint
+  - `npm run lint` → 0 erreur, 0 warning ✅
+  - `npm run build` → Succès ✅
+  - `npm audit` → 0 vulnérabilité ✅
+
+### 🎯 Résumé de l'itération 3
+- **Analyse complète**: 27 modules + persistance + workspaces
+- **APIs externes**: 2 APIs gratuites (CoinGecko, Open-Meteo)
+- **Persistance**: localStorage (Zustand) + IndexedDB (VFS)
+- **Génération custom**: Babel CDN + sandbox Function
+- **Statut**: Tout est fonctionnel et bien architecturé
+
+### 📊 Métriques itération 3
+- Temps: ~13 minutes
+- Fichiers analysés: 27 modules + 5 stores
+- Commit: 0e4c7b3 (documentation)
+
+---
+
+## Iteration 4 - [2025-08-30] - Optimisations et tests finaux
+
+### 🔍 Tests en cours
 
 ### 🔍 Analyse en cours
 - **[08:20 UTC]** - Début de l'analyse des 28 modules intégrés
