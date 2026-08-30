@@ -51,13 +51,13 @@ export async function loadPluginFromURL(url: string): Promise<MorphOSPlugin | nu
       throw new Error(`Failed to fetch plugin: HTTP ${response.status}`);
     }
 
-    const module = await response.json();
+    const pluginModule = await response.json();
     
-    if (!module.default || !module.default.id) {
+    if (!pluginModule.default || !pluginModule.default.id) {
       throw new Error('Invalid plugin module: missing default export with id');
     }
 
-    const plugin: MorphOSPlugin = module.default;
+    const plugin: MorphOSPlugin = pluginModule.default;
     registerPlugin(plugin, { type: 'remote', url });
     
     return plugin;

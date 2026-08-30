@@ -194,7 +194,7 @@ export function PluginModule() {
                 </>
               ) : (
                 <>
-                  <Plugin className="w-3 h-3" /> Load
+                  <Puzzle className="w-3 h-3" /> Load
                 </>
               )}
             </button>
