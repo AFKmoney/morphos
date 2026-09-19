@@ -6,6 +6,7 @@ import dynamic from "next/dynamic";
 import { useWindowStore } from "@/lib/window-store";
 import { useSettings } from "@/lib/settings-store";
 import { useKeyboardShortcuts } from "./keyboard-shortcuts";
+import { initializePlugins } from "@/lib/plugins/plugin-initializer";
 
 // Lazy load everything to keep initial bundle minimal
 const MorphWindowView = dynamic(() => import("./morph-window").then(m => ({ default: m.MorphWindowView })), { ssr: false });
@@ -28,6 +29,10 @@ export function MorphCanvas() {
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [workspacesOpen, setWorkspacesOpen] = useState(false);
 
+  useEffect(() => {
+    initializePlugins().catch(() => undefined);
+  }, []);
+
   useKeyboardShortcuts({
     onOpenPalette: () => setPaletteOpen((v) => !v),
     onOpenWorkspaces: () => setWorkspacesOpen((v) => !v),
@@ -37,7 +42,6 @@ export function MorphCanvas() {
   useEffect(() => {
     if (booting) return;
     if (windows.length === 0) {
-      // Lazy load the chat meta
       import("./module-registry").then(({ getModuleMeta }) => {
         const meta = getModuleMeta("chat");
         const w = window.innerWidth;
