@@ -1,9 +1,1 @@
-/**
- * Custom Themes System
- * 
- * Système complet de thèmes personnalisés pour MorphOS
- */
-
-export * from './theme-types';
-export * from './theme-engine';
-export * from './theme-store';
+// removed — Mistral theme engine slop (real themes live in settings-store + CSS vars)
