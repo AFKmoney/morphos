@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   X, Key, Globe, Palette, Info, Check, AlertCircle, Loader2,
-  ExternalLink, Server, Cpu, Sparkles, RotateCcw, Zap, Shield,
+  ExternalLink, Server, Cpu, Sparkles, RotateCcw, Zap, Shield, Copy, Eye, EyeOff,
 } from "lucide-react";
 import { useSettings, ACCENT_COLORS, type AccentTheme } from "@/lib/settings-store";
 import { PROVIDER_LIST, PROVIDERS, type ProviderId } from "@/lib/providers";
@@ -102,15 +102,22 @@ function ProviderTab() {
   const apiKeys = useSettings((s) => s.apiKeys);
   const baseUrls = useSettings((s) => s.baseUrls);
   const models = useSettings((s) => s.models);
+  const testedAt = useSettings((s) => s.testedAt);
   const setProvider = useSettings((s) => s.setProvider);
   const setApiKey = useSettings((s) => s.setApiKey);
   const setBaseUrl = useSettings((s) => s.setBaseUrl);
   const setModel = useSettings((s) => s.setModel);
+  const setTested = useSettings((s) => s.setTested);
 
   const cfg = PROVIDERS[providerId];
   const [testStatus, setTestStatus] = useState<"idle" | "testing" | "ok" | "fail">("idle");
   const [testMsg, setTestMsg] = useState("");
   const [customModel, setCustomModel] = useState("");
+  const [latencyMs, setLatencyMs] = useState<number | null>(null);
+  const [availModels, setAvailModels] = useState<string[]>([]);
+  const [copied, setCopied] = useState(false);
+  const [showKey, setShowKey] = useState(false);
+  const customRef = useRef<HTMLInputElement>(null);
 
   const currentKey = apiKeys[providerId] ?? "";
   const currentBaseUrl = baseUrls[providerId] ?? cfg.baseUrl;
@@ -121,11 +128,16 @@ function ProviderTab() {
     setTestStatus("idle");
     setTestMsg("");
     setCustomModel("");
+    setAvailModels([]);
+    setLatencyMs(null);
+    setCopied(false);
   }
 
-  async function test() {
+  async function test(modelOverride?: string) {
     setTestStatus("testing");
     setTestMsg("");
+    setLatencyMs(null);
+    const t0 = performance.now();
     try {
       const data = await fetchJson("/api/test-provider", {
         method: "POST",
@@ -134,11 +146,14 @@ function ProviderTab() {
           providerId,
           apiKey: currentKey,
           baseUrl: currentBaseUrl,
-          model: customModel || currentModel,
+          model: modelOverride ?? (customModel || currentModel),
         }),
       });
+      setLatencyMs(Math.round(performance.now() - t0));
+      if (Array.isArray(data.models)) setAvailModels(data.models);
       if (data.ok) {
         setTestStatus("ok");
+        setTested(providerId);
         const n = Array.isArray(data.models) ? data.models.length : 0;
         setTestMsg((data.reply || "OK") + (n ? ` · ${n} models on endpoint` : ""));
       } else {
@@ -146,8 +161,19 @@ function ProviderTab() {
         setTestMsg(data.error || "Failed");
       }
     } catch (e) {
+      setLatencyMs(Math.round(performance.now() - t0));
       setTestStatus("fail");
-      setTestMsg(String(e));
+      setTestMsg(e instanceof Error ? e.message : String(e));
+    }
+  }
+
+  async function copyError() {
+    try {
+      await navigator.clipboard.writeText(testMsg);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      /* clipboard unavailable */
     }
   }
 
@@ -191,8 +217,14 @@ function ProviderTab() {
                     <Check className="w-2.5 h-2.5 text-black" />
                   </div>
                 )}
-                {!selected && (p.requiresKey || p.keyOptional) && hasKey && (
-                  <div className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                {(p.requiresKey || p.keyOptional) && (hasKey || testedAt[p.id]) && (
+                  <div
+                    title={testedAt[p.id] ? t("settings.test.tested") : t("settings.test.keyOnly")}
+                    className={cn(
+                      "absolute bottom-1 right-1 w-1.5 h-1.5 rounded-full",
+                      testedAt[p.id] ? "bg-emerald-400" : "bg-amber-400"
+                    )}
+                  />
                 )}
               </button>
             );
@@ -221,7 +253,7 @@ function ProviderTab() {
             )}
           </div>
           <button
-            onClick={test}
+            onClick={() => test()}
             disabled={testStatus === "testing"}
             className="text-[11px] px-2.5 py-1 rounded-md bg-cyan-500/20 border border-cyan-400/30 text-cyan-300 hover:bg-cyan-500/30 disabled:opacity-50 flex items-center gap-1"
           >
@@ -237,12 +269,20 @@ function ProviderTab() {
         {(cfg.requiresKey || cfg.keyOptional) && (
           <Field label={cfg.keyOptional ? t("settings.apiKey.optional") : t("settings.apiKey")} icon={Key}>
             <input
-              type="password"
+              type={showKey ? "text" : "password"}
               value={currentKey}
               onChange={(e) => setApiKey(providerId, e.target.value)}
               placeholder={cfg.keyHint}
-              className="flex-1 bg-black/40 border border-white/10 rounded px-2.5 py-1.5 text-xs text-white outline-none focus:border-cyan-400/50 font-mono"
+              spellCheck={false}
+              className="flex-1 min-w-0 bg-black/40 border border-white/10 rounded px-2.5 py-1.5 text-xs text-white outline-none focus:border-cyan-400/50 font-mono"
             />
+            <button
+              onClick={() => setShowKey(!showKey)}
+              title={showKey ? t("settings.test.hideKey") : t("settings.test.showKey")}
+              className="text-white/40 hover:text-white p-1 shrink-0"
+            >
+              {showKey ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+            </button>
             <span className={cn("text-[10px]", currentKey ? "text-emerald-400" : "text-white/40")}>
               {currentKey ? t("settings.apiKey.set") : (cfg.keyOptional ? "optional" : t("settings.apiKey.unset"))}
             </span>
@@ -265,10 +305,20 @@ function ProviderTab() {
         {/* Model */}
         <Field label={t("settings.model")} icon={Cpu}>
           <select
-            value={currentModel === cfg.defaultModel ? "" : currentModel}
+            value={
+              currentModel === cfg.defaultModel
+                ? ""
+                : cfg.models.includes(currentModel)
+                  ? currentModel
+                  : "__current"
+            }
             onChange={(e) => {
-              if (e.target.value === "__custom") return;
+              if (e.target.value === "__custom" || e.target.value === "__current") {
+                customRef.current?.focus();
+                return;
+              }
               setModel(providerId, e.target.value || cfg.defaultModel);
+              setCustomModel("");
             }}
             className="bg-black/40 border border-white/10 rounded px-2.5 py-1.5 text-xs text-white outline-none focus:border-cyan-400/50"
           >
@@ -276,6 +326,9 @@ function ProviderTab() {
             {cfg.models.filter((m) => m !== cfg.defaultModel).map((m) => (
               <option key={m} value={m}>{m}</option>
             ))}
+            {!cfg.models.includes(currentModel) && currentModel !== cfg.defaultModel && (
+              <option value="__current">{currentModel} (current)</option>
+            )}
             <option value="__custom">Custom…</option>
           </select>
         </Field>
@@ -283,6 +336,7 @@ function ProviderTab() {
         {/* Custom model input */}
         <Field label={t("settings.model.custom")} icon={Cpu}>
           <input
+            ref={customRef}
             type="text"
             value={customModel}
             onChange={(e) => {
@@ -305,15 +359,57 @@ function ProviderTab() {
         {/* Test result */}
         {testStatus !== "idle" && (
           <div className={cn(
-            "text-[11px] px-2.5 py-1.5 rounded flex items-center gap-1.5",
+            "text-[11px] px-2.5 py-1.5 rounded flex items-start gap-1.5",
             testStatus === "ok" && "bg-emerald-500/15 text-emerald-300 border border-emerald-400/30",
             testStatus === "fail" && "bg-rose-500/15 text-rose-300 border border-rose-400/30",
             testStatus === "testing" && "bg-cyan-500/15 text-cyan-300 border border-cyan-400/30"
           )}>
-            {testStatus === "ok" && <Check className="w-3 h-3" />}
-            {testStatus === "fail" && <AlertCircle className="w-3 h-3" />}
-            {testStatus === "testing" && <Loader2 className="w-3 h-3 animate-spin" />}
-            <span className="font-mono truncate flex-1">{testMsg || (testStatus === "ok" ? t("settings.apiKey.ok") : t("settings.apiKey.fail"))}</span>
+            <span className="mt-0.5 shrink-0">
+              {testStatus === "ok" && <Check className="w-3 h-3" />}
+              {testStatus === "fail" && <AlertCircle className="w-3 h-3" />}
+              {testStatus === "testing" && <Loader2 className="w-3 h-3 animate-spin" />}
+            </span>
+            <span className="font-mono flex-1 whitespace-pre-wrap break-words max-h-28 overflow-y-auto thin-scroll">
+              {testMsg || (testStatus === "ok" ? t("settings.apiKey.ok") : testStatus === "fail" ? t("settings.apiKey.fail") : t("settings.apiKey.testing"))}
+              {latencyMs !== null && testStatus !== "testing" && (
+                <span className="opacity-70"> · {latencyMs}ms</span>
+              )}
+            </span>
+            {testStatus === "fail" && testMsg && (
+              <button
+                onClick={copyError}
+                title={t("settings.test.copy")}
+                className="shrink-0 text-white/50 hover:text-white p-0.5"
+              >
+                {copied ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* Live models from the endpoint — click one to apply it and retest */}
+        {availModels.length > 0 && (
+          <div>
+            <div className="text-[10px] uppercase tracking-wider text-white/40 mb-1">
+              {t("settings.test.availableModels")}
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {availModels.slice(0, 12).map((m) => (
+                <button
+                  key={m}
+                  onClick={() => {
+                    setModel(providerId, m);
+                    setCustomModel(m);
+                    test(m);
+                  }}
+                  disabled={testStatus === "testing"}
+                  title={m}
+                  className="text-[10px] font-mono px-2 py-1 rounded-md bg-cyan-500/10 border border-cyan-400/25 text-cyan-200 hover:bg-cyan-500/25 disabled:opacity-50 max-w-full truncate"
+                >
+                  {m}
+                </button>
+              ))}
+            </div>
           </div>
         )}
       </div>

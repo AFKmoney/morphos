@@ -57,6 +57,28 @@ export class LlmError extends Error {
   }
 }
 
+// Cached outbound-connectivity probe (60s TTL): distinguishes "this server has
+// no/restricted internet egress" from "the provider host is wrong or down".
+let egressProbe: { at: number; ok: boolean } | null = null;
+async function egressOk(): Promise<boolean> {
+  if (egressProbe && Date.now() - egressProbe.at < 60_000) return egressProbe.ok;
+  let ok = false;
+  try {
+    // NOTE: api.github.com's TLS is MITM'd in some sandboxes (Node rejects it
+    // with UNABLE_TO_VERIFY_LEAF_SIGNATURE while curl accepts it), so probe the
+    // npm registry instead — small doc, reliable from Node runtimes.
+    const res = await fetch("https://registry.npmjs.org/react/latest", {
+      method: "GET",
+      signal: AbortSignal.timeout(5000),
+    });
+    ok = res.ok;
+  } catch {
+    ok = false;
+  }
+  egressProbe = { at: Date.now(), ok };
+  return ok;
+}
+
 function hostOf(baseUrl: string): string {
   try {
     return new URL((baseUrl || "").trim()).host || baseUrl;
@@ -71,10 +93,21 @@ async function llmFetch(url: string, init: RequestInit, baseUrl: string): Promis
     return await fetch(url, init);
   } catch (e) {
     const reason = e instanceof Error ? e.message : String(e);
-    throw new LlmError(
-      0,
-      `Network error: cannot reach ${hostOf(baseUrl)} (${reason}). Check the base URL and your internet connection.`
-    );
+    const host = hostOf(baseUrl);
+    // If generic internet works but this host doesn't, the server's network
+    // is filtering it (typical of hosted preview sandboxes) — say so clearly.
+    let hint = "Check the base URL and your internet connection.";
+    try {
+      if (await egressOk()) {
+        hint =
+          `This MorphOS server can reach the internet, but outbound connections to ${host} are blocked from here ` +
+          `(typical of hosted preview sandboxes with restricted egress). The provider was NOT tested. ` +
+          `Run MorphOS on your own machine ('bun install && bun run dev') and retry there.`;
+      }
+    } catch {
+      /* keep generic hint */
+    }
+    throw new LlmError(0, `Network error: cannot reach ${host} (${reason}). ${hint}`);
   }
 }
 

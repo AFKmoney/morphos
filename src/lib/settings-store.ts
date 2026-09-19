@@ -21,6 +21,7 @@ interface SettingsState {
   apiKeys: Partial<Record<ProviderId, string>>;
   baseUrls: Partial<Record<ProviderId, string>>;
   models: Partial<Record<ProviderId, string>>;
+  testedAt: Partial<Record<ProviderId, number>>;
 
   // UI prefs
   language: Language;
@@ -37,6 +38,7 @@ interface SettingsState {
   setApiKey: (provider: ProviderId, key: string) => void;
   setBaseUrl: (provider: ProviderId, url: string) => void;
   setModel: (provider: ProviderId, model: string) => void;
+  setTested: (provider: ProviderId) => void;
   setLanguage: (lang: Language) => void;
   setTheme: (theme: AccentTheme) => void;
   toggleLanguage: () => void;
@@ -56,6 +58,7 @@ export const useSettings = create<SettingsState>()(
       apiKeys: {},
       baseUrls: {},
       models: {},
+      testedAt: {},
       language: "en",
       theme: "cyan",
       enableSound: false,
@@ -70,6 +73,8 @@ export const useSettings = create<SettingsState>()(
         set((s) => ({ baseUrls: { ...s.baseUrls, [provider]: url } })),
       setModel: (provider, model) =>
         set((s) => ({ models: { ...s.models, [provider]: model } })),
+      setTested: (provider) =>
+        set((s) => ({ testedAt: { ...s.testedAt, [provider]: Date.now() } })),
       setLanguage: (lang) => set({ language: lang }),
       setTheme: (theme) => set({ theme }),
       toggleLanguage: () => set((s) => ({ language: s.language === "en" ? "fr" : "en" })),
@@ -84,6 +89,7 @@ export const useSettings = create<SettingsState>()(
           apiKeys: {},
           baseUrls: {},
           models: {},
+          testedAt: {},
           language: "en",
           theme: "cyan",
           enableSound: false,
@@ -98,6 +104,7 @@ export const useSettings = create<SettingsState>()(
           apiKeys: s.apiKeys, // KEEP
           baseUrls: s.baseUrls, // KEEP
           models: s.models, // KEEP
+          testedAt: s.testedAt, // KEEP
           language: "en",
           theme: "cyan",
           enableSound: false,
@@ -123,6 +130,7 @@ export const useSettings = create<SettingsState>()(
         apiKeys: s.apiKeys,
         baseUrls: s.baseUrls,
         models: s.models,
+        testedAt: s.testedAt,
         language: s.language,
         theme: s.theme,
         enableSound: s.enableSound,

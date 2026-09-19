@@ -88,7 +88,7 @@ export async function POST(req: NextRequest) {
         // Step 2: verify the selected model with a tiny chat completion.
         try {
           const reply = await openaiChat({ baseUrl, apiKey, model, messages, maxTokens: 10 });
-          return NextResponse.json({ ok: true, reply: reply.slice(0, 80), models: models ?? undefined });
+          return NextResponse.json({ ok: true, keyOk: true, modelUsed: model, reply: reply.slice(0, 80), models: models ?? undefined });
         } catch (e) {
           const chatErr = e instanceof Error ? e.message : String(e);
           if (models) {
@@ -96,13 +96,15 @@ export async function POST(req: NextRequest) {
             return NextResponse.json(
               {
                 ok: false,
+                keyOk: true,
+                modelUsed: model,
                 models,
                 error: `Key accepted, but model "${model}" failed: ${chatErr}. Available models: ${available}`,
               },
               { status: 502 }
             );
           }
-          return NextResponse.json({ ok: false, error: chatErr }, { status: 502 });
+          return NextResponse.json({ ok: false, keyOk: models !== null, modelUsed: model, error: chatErr }, { status: 502 });
         }
       }
 
