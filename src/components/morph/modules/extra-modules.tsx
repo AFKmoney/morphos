@@ -1,8 +1,9 @@
 "use client";
 
 // All extra modules in one file to reduce Turbopack memory pressure
-import { useState, useEffect, useRef, useMemo } from "react";
-import { Play, Pause, RotateCcw, Coffee, Brain, Brush, Eraser, Trash2, Download, Undo2, Check, AlertCircle, Copy, ArrowRightLeft, ChevronLeft, ChevronRight, ChevronDown, File, Folder, FileCode, FileText, FolderPlus, FilePlus, RotateCw, Lock, Globe, ExternalLink, CalendarDays } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import QRCode from "qrcode";
+import { Play, Pause, RotateCcw, Coffee, Brain, Brush, Eraser, Trash2, Download, Undo2, Check, AlertCircle, Copy, ArrowRightLeft, ChevronLeft, ChevronRight, Lock, Globe, ExternalLink } from "lucide-react";
 
 // ============ POMODORO ============
 export function PomodoroModule() {
@@ -163,19 +164,28 @@ export function ColorPickerModule() {
 }
 
 // ============ QR ============
-function simpleHash(s: string): number { let h = 5381; for(let i=0;i<s.length;i++) h=((h<<5)+h+s.charCodeAt(i))&0xffffffff; return Math.abs(h); }
-function isCorner(i: number, j: number, n: number): boolean | null { const inSq=(r:number,c:number)=>{if(r<0||c<0||r>=n||c>=n)return null;const o=r===0||r===6||c===0||c===6;const ii=r>=2&&r<=4&&c>=2&&c<=4;const m=r>=1&&r<=5&&c>=1&&c<=5;if(!m)return null;return o||ii;}; if(i<7&&j<7)return inSq(i,j); if(i<7&&j>=n-7)return inSq(i,j-(n-7)); if(i>=n-7&&j<7)return inSq(i-(n-7),j); return null; }
+type QrECLevel = "L" | "M" | "Q" | "H";
+const QR_EC_LEVELS: QrECLevel[] = ["L", "M", "Q", "H"];
 export function QrModule() {
   const [text, setText] = useState("https://github.com/morphos");
-  const [size, setSize] = useState(21);
-  const matrix = useMemo(() => { const hash = simpleHash(text); const m: boolean[][] = []; for(let i=0;i<size;i++){const row:boolean[]=[];for(let j=0;j<size;j++){const c=isCorner(i,j,size);if(c!==null)row.push(c);else{const v=(hash>>((i*size+j)%31))^(i*7+j*13);row.push((v&1)===1);}}m.push(row);} return m; }, [text, size]);
-  function download() { const canvas=document.createElement("canvas");const cs=10;canvas.width=size*cs;canvas.height=size*cs;const ctx=canvas.getContext("2d")!;ctx.fillStyle="#fff";ctx.fillRect(0,0,canvas.width,canvas.height);ctx.fillStyle="#000";for(let i=0;i<size;i++)for(let j=0;j<size;j++)if(matrix[i]?.[j])ctx.fillRect(j*cs,i*cs,cs,cs);const link=document.createElement("a");link.download=`morphos-qr-${Date.now()}.png`;link.href=canvas.toDataURL();link.click(); }
+  const [ecLevel, setEcLevel] = useState<QrECLevel>("M");
+  const [dataUrl, setDataUrl] = useState("");
+  const [qrError, setQrError] = useState<string | null>(null);
+  useEffect(() => {
+    let live = true;
+    QRCode.toDataURL(text || " ", { width: 360, margin: 2, errorCorrectionLevel: ecLevel, color: { dark: "#000000", light: "#ffffff" } })
+      .then((url) => { if (live) { setDataUrl(url); setQrError(null); } })
+      .catch((e) => { if (live) { setDataUrl(""); setQrError(e instanceof Error ? e.message : String(e)); } });
+    return () => { live = false; };
+  }, [text, ecLevel]);
+  function download() { if (!dataUrl) return; const link = document.createElement("a"); link.download = `morphos-qr-${Date.now()}.png`; link.href = dataUrl; link.click(); }
   return (
-    <div className="flex flex-col h-full p-3 gap-3">
+    <div className="flex flex-col h-full p-3 gap-3 thin-scroll overflow-y-auto">
       <div><div className="text-[10px] uppercase tracking-wider text-white/40 mb-1">Text / URL</div><input value={text} onChange={e=>setText(e.target.value)} className="w-full bg-black/40 border border-white/10 rounded px-2 py-1.5 text-xs text-white outline-none focus:border-cyan-400/50" /></div>
-      <div className="flex items-center justify-center bg-white rounded-lg p-4 mx-auto"><svg width="180" height="180" viewBox={`0 0 ${size} ${size}`} shapeRendering="crispEdges">{matrix.map((row,i)=>row.map((cell,j)=><rect key={`${i}-${j}`} x={j} y={i} width={1} height={1} fill={cell?"#000":"#fff"} />))}</svg></div>
-      <div className="flex items-center gap-2"><span className="text-[10px] text-white/40">Density</span><input type="range" min={15} max={35} value={size} onChange={e=>setSize(Number(e.target.value))} className="flex-1 accent-cyan-400" /><span className="text-[10px] font-mono text-white/60 w-8">{size}²</span></div>
-      <button onClick={download} className="text-[11px] px-3 py-1.5 rounded-md bg-cyan-500/20 border border-cyan-400/30 text-cyan-300 hover:bg-cyan-500/30 flex items-center justify-center gap-1.5"><Download className="w-3 h-3" /> Download PNG</button>
+      <div className="flex items-center justify-center bg-white rounded-lg p-4 mx-auto min-w-[212px] min-h-[212px]">{dataUrl ? <img src={dataUrl} alt="QR code" width={180} height={180} /> : <span className="text-[11px] text-black/50">{qrError ?? "Generating…"}</span>}</div>
+      {qrError && <div className="text-[11px] text-rose-300 bg-rose-500/10 border border-rose-400/30 rounded px-2 py-1.5">{qrError}</div>}
+      <div className="flex items-center gap-2"><span className="text-[10px] text-white/40">Correction</span><div className="flex gap-1">{QR_EC_LEVELS.map(l=><button key={l} onClick={()=>setEcLevel(l)} className={`text-[10px] px-2 py-0.5 rounded font-mono ${ecLevel===l?"bg-cyan-500/20 text-cyan-300 border border-cyan-400/30":"text-white/50 bg-white/5 hover:text-white"}`}>{l}</button>)}</div><span className="text-[9px] text-white/30 ml-auto">scannable</span></div>
+      <button onClick={download} disabled={!dataUrl} className="text-[11px] px-3 py-1.5 rounded-md bg-cyan-500/20 border border-cyan-400/30 text-cyan-300 hover:bg-cyan-500/30 disabled:opacity-30 flex items-center justify-center gap-1.5"><Download className="w-3 h-3" /> Download PNG</button>
     </div>
   );
 }
@@ -200,18 +210,6 @@ export function DevtoolsModule() {
       <div className="flex flex-col flex-1 gap-1 min-h-0"><div className="text-[10px] uppercase tracking-wider text-white/40">Output</div><pre className="flex-1 bg-black/40 border border-white/10 rounded p-2 text-[11px] font-mono text-emerald-200/90 overflow-auto thin-scroll whitespace-pre-wrap break-all min-h-[60px]">{output || <span className="text-white/30">— click {tool==="uuid"?"Generate":"Convert"} —</span>}</pre></div>
     </div>
   );
-}
-
-// ============ FILES ============
-interface FileNode { name: string; type: "file"|"folder"; content?: string; children?: FileNode[]; lang?: string; }
-const FS: FileNode = { name:"morphos",type:"folder",children:[{name:"src",type:"folder",children:[{name:"app",type:"folder",children:[{name:"page.tsx",type:"file",lang:"tsx",content:"import { MorphCanvas } from '@/components/morph/morph-canvas';\nexport default function Home() { return <MorphCanvas />; }"},{name:"layout.tsx",type:"file",lang:"tsx",content:"// Root layout"}]},{name:"components",type:"folder",children:[{name:"morph-canvas.tsx",type:"file",lang:"tsx"},{name:"morph-window.tsx",type:"file",lang:"tsx"}]},{name:"lib",type:"folder",children:[{name:"providers.ts",type:"file",lang:"ts"},{name:"window-store.ts",type:"file",lang:"ts"}]}]},{name:"package.json",type:"file",lang:"json",content:'{"name":"morphos","version":"0.9.7"}'},{name:"README.md",type:"file",lang:"md",content:"# MorphOS\n\nThe interface that rewrites itself."}]};
-export function FilesModule() {
-  const [selected, setSelected] = useState<FileNode | null>(null);
-  const [expanded, setExpanded] = useState<Set<string>>(new Set(["morphos","morphos/src"]));
-  function toggle(p:string){setExpanded(prev=>{const n=new Set(prev);if(n.has(p))n.delete(p);else n.add(p);return n;});}
-  function getIcon(n:FileNode){if(n.type==="folder")return <Folder className="w-3 h-3 text-cyan-400" />;if(n.lang==="tsx"||n.lang==="ts")return <FileCode className="w-3 h-3 text-violet-400" />;if(n.lang==="md")return <FileText className="w-3 h-3 text-amber-400" />;return <File className="w-3 h-3 text-white/60" />;}
-  function render(n:FileNode,p:string,d:number):React.ReactNode{const fp=`${p}/${n.name}`;if(n.type==="folder"){const o=expanded.has(fp);return <div key={fp}><button onClick={()=>toggle(fp)} className="flex items-center gap-1 w-full text-left px-1 py-0.5 hover:bg-white/5 rounded text-[11px] text-white/80" style={{paddingLeft:d*12+4}}>{o?<ChevronDown className="w-2.5 h-2.5 text-white/40" />:<ChevronRight className="w-2.5 h-2.5 text-white/40" />}{getIcon(n)}<span className="truncate">{n.name}</span></button>{o&&n.children?.map(c=>render(c,fp,d+1))}</div>;}return <button key={fp} onClick={()=>setSelected(n)} className={`flex items-center gap-1 w-full text-left px-1 py-0.5 rounded text-[11px] ${selected===n?"bg-cyan-500/20 text-cyan-200":"text-white/70 hover:bg-white/5"}`} style={{paddingLeft:d*12+16}}>{getIcon(n)}<span className="truncate">{n.name}</span></button>;}
-  return <div className="flex h-full"><div className="w-1/2 border-r border-white/8 overflow-y-auto thin-scroll p-1.5"><div className="flex items-center justify-between px-2 py-1 mb-1"><span className="text-[10px] uppercase tracking-wider text-white/40">Explorer</span><div className="flex gap-1"><FolderPlus className="w-3 h-3 text-white/40" /><FilePlus className="w-3 h-3 text-white/40" /></div></div>{render(FS,"",0)}</div><div className="flex-1 flex flex-col"><div className="px-3 py-1.5 border-b border-white/8 bg-black/30 flex items-center gap-2"><span className="text-[10px] font-mono text-white/60">{selected?.name??"—"}</span>{selected?.lang&&<span className="text-[9px] px-1.5 py-0.5 rounded bg-violet-500/20 text-violet-300 uppercase">{selected.lang}</span>}</div><pre className="flex-1 overflow-auto thin-scroll p-3 text-[10px] font-mono text-white/80 whitespace-pre-wrap">{selected?.content??<span className="text-white/30">Select a file to preview</span>}</pre></div></div>;
 }
 
 // ============ BROWSER ============

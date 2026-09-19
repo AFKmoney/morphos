@@ -19,7 +19,7 @@ const loadingFallback = () => (
 
 const modulesPromise = import("./modules");
 
-const lazyComponents: Record<string, React.LazyExoticComponent<React.ComponentType<{ windowId?: string; code?: string }>>> = {
+const lazyComponents: Record<string, React.ComponentType<{ windowId?: string; code?: string }>> = {
   ChatModule: dynamic(() => modulesPromise.then(m => ({ default: m.ChatModule })), { loading: loadingFallback }),
   MonitorModule: dynamic(() => modulesPromise.then(m => ({ default: m.MonitorModule })), { loading: loadingFallback }),
   DashboardModule: dynamic(() => modulesPromise.then(m => ({ default: m.DashboardModule })), { loading: loadingFallback }),
@@ -49,6 +49,41 @@ const lazyComponents: Record<string, React.LazyExoticComponent<React.ComponentTy
   ImageGenModule: dynamic(() => modulesPromise.then(m => ({ default: m.ImageGenModule })), { loading: loadingFallback }),
   PluginModule: dynamic(() => modulesPromise.then(m => ({ default: m.PluginModule })), { loading: loadingFallback }),
 };
+
+export const MODULE_SIZES: Record<ModuleType, { width: number; height: number }> = {
+  chat: { width: 460, height: 560 },
+  monitor: { width: 540, height: 420 },
+  dashboard: { width: 720, height: 480 },
+  terminal: { width: 600, height: 380 },
+  kanban: { width: 680, height: 460 },
+  notes: { width: 480, height: 460 },
+  code: { width: 680, height: 480 },
+  weather: { width: 380, height: 460 },
+  clock: { width: 360, height: 240 },
+  music: { width: 420, height: 480 },
+  calculator: { width: 320, height: 440 },
+  stock: { width: 540, height: 380 },
+  camera: { width: 480, height: 420 },
+  metrics: { width: 560, height: 380 },
+  pomodoro: { width: 320, height: 420 },
+  paint: { width: 580, height: 480 },
+  regex: { width: 540, height: 520 },
+  json: { width: 560, height: 440 },
+  colorpicker: { width: 380, height: 540 },
+  qr: { width: 360, height: 480 },
+  devtools: { width: 480, height: 540 },
+  files: { width: 580, height: 460 },
+  browser: { width: 720, height: 560 },
+  calendar: { width: 380, height: 480 },
+  whiteboard: { width: 580, height: 480 },
+  custom: { width: 460, height: 420 },
+  imagegen: { width: 420, height: 560 },
+  plugin: { width: 480, height: 520 },
+};
+
+export function getDefaultModuleSize(type: string): { width: number; height: number } {
+  return (MODULE_SIZES as Record<string, { width: number; height: number }>)[type] ?? { width: 480, height: 400 };
+}
 
 export interface ModuleMeta {
   type: ModuleType;
@@ -111,7 +146,7 @@ const INFO_MAP: Record<ModuleType, Omit<ModuleMeta, "component">> = {
   regex: { type: "regex", label: "Regex", description: "Pattern tester", icon: Regex, accent: "#c084fc" },
   json: { type: "json", label: "JSON", description: "Formatter & minifier", icon: Braces, accent: "#34d399" },
   colorpicker: { type: "colorpicker", label: "Color Picker", description: "HEX/RGB/HSL + harmonies", icon: Palette, accent: "#f472b6" },
-  qr: { type: "qr", label: "QR Code", description: "Generator (visual)", icon: QrCode, accent: "#22d3ee" },
+  qr: { type: "qr", label: "QR Code", description: "Scannable generator", icon: QrCode, accent: "#22d3ee" },
   devtools: { type: "devtools", label: "Dev Tools", description: "Base64 · Hash · UUID · Hex", icon: Wrench, accent: "#fbbf24" },
   files: { type: "files", label: "Files", description: "Virtual file explorer", icon: FolderTree, accent: "#34d399" },
   browser: { type: "browser", label: "Browser", description: "Web viewer (iframe)", icon: Globe, accent: "#22d3ee" },

@@ -53,14 +53,15 @@ export function FilesModule() {
   }
 
   function createNew(type: "file" | "folder") {
-    if (!newName.trim()) return;
-    const fullPath = currentPath === "/" ? `/${newName}` : `${currentPath}/${newName}`;
+    if (!newName.trim() || !creating) return;
+    const parent = creating.parent;
+    const fullPath = parent === "/" ? `/${newName.trim()}` : `${parent}/${newName.trim()}`;
     if (type === "file") {
       vfs.createFile(fullPath, "");
     } else {
       vfs.createFolder(fullPath);
     }
-    setExpanded(prev => new Set(prev).add(currentPath));
+    setExpanded(prev => new Set(prev).add(parent));
     setCreating(null);
     setNewName("");
   }

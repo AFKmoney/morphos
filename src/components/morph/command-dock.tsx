@@ -3,7 +3,7 @@
 import { useRef, useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useWindowStore } from "@/lib/window-store";
-import { getModuleMeta } from "./module-registry";
+import { getModuleMeta, getDefaultModuleSize as getDefaultSize } from "./module-registry";
 import { Sparkles, Send, X, Layers, Zap, Hexagon, ChevronUp, Mic, MicOff } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/use-t";
@@ -11,39 +11,7 @@ import { useSettings, buildProviderPayload } from "@/lib/settings-store";
 import { useAIContext } from "@/lib/ai-context-store";
 import { useVoiceInput } from "@/lib/use-voice-input";
 
-const MODULE_SIZES: Record<string, { width: number; height: number }> = {
-  chat: { width: 460, height: 560 },
-  monitor: { width: 540, height: 420 },
-  dashboard: { width: 720, height: 480 },
-  terminal: { width: 600, height: 380 },
-  kanban: { width: 680, height: 460 },
-  notes: { width: 480, height: 460 },
-  code: { width: 680, height: 480 },
-  weather: { width: 380, height: 460 },
-  clock: { width: 360, height: 240 },
-  music: { width: 420, height: 480 },
-  calculator: { width: 320, height: 440 },
-  stock: { width: 540, height: 380 },
-  camera: { width: 480, height: 420 },
-  metrics: { width: 560, height: 380 },
-  pomodoro: { width: 320, height: 420 },
-  paint: { width: 580, height: 480 },
-  regex: { width: 540, height: 520 },
-  json: { width: 560, height: 440 },
-  colorpicker: { width: 380, height: 540 },
-  qr: { width: 360, height: 480 },
-  devtools: { width: 480, height: 540 },
-  files: { width: 580, height: 460 },
-  browser: { width: 720, height: 560 },
-  calendar: { width: 380, height: 480 },
-  whiteboard: { width: 580, height: 480 },
-  custom: { width: 460, height: 420 },
-  imagegen: { width: 420, height: 560 },
-};
 
-function getDefaultSize(type: string) {
-  return MODULE_SIZES[type] ?? { width: 480, height: 400 };
-}
 
 // Top bar height — windows can't go above this
 export const TOP_BAR_HEIGHT = 48;

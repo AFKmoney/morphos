@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import ZAI from "z-ai-web-dev-sdk";
 import type { ProviderId } from "@/lib/providers";
 import { PROVIDERS } from "@/lib/providers";
+import { ALLOWED_MODULES, buildCodePreview, fallbackInterpret, type FallbackModuleType } from "@/lib/fallback-interpret";
 
 export const dynamic = "force-dynamic";
 
@@ -29,45 +30,65 @@ The user speaks to you in natural language and you decide which module to spawn.
 
 Available modules: chat, monitor, dashboard, terminal, kanban, notes, code, weather, clock, music, calculator, stock, camera, metrics, pomodoro, paint, regex, json, colorpicker, qr, devtools, files, browser, calendar, whiteboard, imagegen, custom
 
-Respond STRICTELY in JSON: {"moduleType":"...","title":"...","aiMessage":"...","prompt":"(if custom)"}`;
+Respond STRICTLY in JSON: {"moduleType":"...","title":"...","aiMessage":"...","prompt":"(if custom)"}`;
+}
+
+function sseMessage(payload: unknown): ReadableStream<Uint8Array> {
+  const encoder = new TextEncoder();
+  return new ReadableStream({
+    start(controller) {
+      controller.enqueue(encoder.encode(`data: ${JSON.stringify(payload)}\n\n`));
+      controller.close();
+    },
+  });
+}
+
+function sseError(message: string): Response {
+  return new Response(sseMessage({ type: "error", error: message }), {
+    headers: { "Content-Type": "text/event-stream" },
+  });
 }
 
 export async function POST(req: NextRequest) {
+  const body = await req.json().catch(() => ({}));
+  const prompt: string = (body.prompt ?? "").toString().trim();
+  const history: { role: string; content: string }[] = Array.isArray(body.history) ? body.history : [];
+  const lang: "en" | "fr" = body.language === "fr" ? "fr" : "en";
+  const provider: ProviderPayload = body.provider ?? { providerId: "zai", apiKey: "", baseUrl: "", model: "" };
+  const context = body.context ?? {};
+  const memory = body.memory ?? "";
+
+  if (!prompt) {
+    return new Response(JSON.stringify({ error: "missing prompt" }), { status: 400 });
+  }
+
+  // ---- Config errors → hard error (user must fix settings) ----
+  if (provider.providerId !== "zai") {
+    const cfg = PROVIDERS[provider.providerId];
+    if (!cfg) return sseError("unknown provider");
+    if (cfg.requiresKey && !provider.apiKey) return sseError(`API key required for ${cfg.label}. Open Settings to configure.`);
+    if (cfg.apiStyle !== "openai" && cfg.apiStyle !== "anthropic") return sseError("Provider not supported");
+  }
+
+  const systemPrompt = buildSystemPrompt(lang);
+  const contextStr = context.activeWindows?.length > 0
+    ? `\n\nActive windows: ${context.activeWindows.map((w: { title: string; type: string }) => `${w.title} (${w.type})`).join(", ")}`
+    : "";
+  const memoryStr = memory ? `\n\n${memory}` : "";
+  const fullSystemPrompt = systemPrompt + contextStr + memoryStr;
+
+  const messages = [
+    { role: "system", content: fullSystemPrompt },
+    ...history.slice(-6).map((m) => ({ role: m.role, content: m.content })),
+    { role: "user", content: prompt },
+  ];
+
+  // ---- LLM call — any failure falls back to keyword matching ----
+  let rawText = "";
+
   try {
-    const body = await req.json().catch(() => ({}));
-    const prompt: string = (body.prompt ?? "").toString().trim();
-    const history: { role: string; content: string }[] = Array.isArray(body.history) ? body.history : [];
-    const lang: "en" | "fr" = body.language === "fr" ? "fr" : "en";
-    const provider: ProviderPayload = body.provider ?? { providerId: "zai", apiKey: "", baseUrl: "", model: "" };
-    const context = body.context ?? {};
-    const memory = body.memory ?? "";
-
-    if (!prompt) {
-      return new Response(JSON.stringify({ error: "missing prompt" }), { status: 400 });
-    }
-
-    const systemPrompt = buildSystemPrompt(lang);
-    const contextStr = context.activeWindows?.length > 0
-      ? `\n\nActive windows: ${context.activeWindows.map((w: any) => `${w.title} (${w.type})`).join(", ")}`
-      : "";
-    const memoryStr = memory ? `\n\n${memory}` : "";
-    const fullSystemPrompt = systemPrompt + contextStr + memoryStr;
-
-    const messages = [
-      { role: "system", content: fullSystemPrompt },
-      ...history.slice(-6).map((m) => ({ role: m.role, content: m.content })),
-      { role: "user", content: prompt },
-    ];
-
-    const encoder = new TextEncoder();
-
-    // Get raw text from the LLM
-    let rawText = "";
-    let useStreaming = false;
-
     if (provider.providerId === "zai") {
       if (provider.apiKey) {
-        // Direct fetch with streaming
         const baseUrl = provider.baseUrl || "https://api.z.ai/api/paas/v4";
         const model = provider.model || "glm-4.6";
         const url = baseUrl.endsWith("/") ? `${baseUrl}chat/completions` : `${baseUrl}/chat/completions`;
@@ -81,32 +102,24 @@ export async function POST(req: NextRequest) {
         });
 
         if (res.ok && res.body) {
-          useStreaming = true;
           const reader = res.body.getReader();
           const decoder = new TextDecoder();
-
           while (true) {
             const { done, value } = await reader.read();
             if (done) break;
             const chunk = decoder.decode(value, { stream: true });
-            const lines = chunk.split("\n");
-            for (const line of lines) {
+            for (const line of chunk.split("\n")) {
               if (line.startsWith("data: ")) {
                 const data = line.slice(6).trim();
                 if (data === "[DONE]") continue;
                 try {
                   const json = JSON.parse(data);
-                  const delta = json.choices?.[0]?.delta?.content ?? "";
-                  if (delta) {
-                    rawText += delta;
-                    // Send delta to client
-                  }
-                } catch {}
+                  rawText += json.choices?.[0]?.delta?.content ?? "";
+                } catch { /* partial chunk */ }
               }
             }
           }
         } else {
-          // Fallback to non-streaming
           const res2 = await fetch(url, {
             method: "POST",
             headers: {
@@ -115,27 +128,24 @@ export async function POST(req: NextRequest) {
             },
             body: JSON.stringify({ model, messages, temperature: 0.4, max_tokens: 400 }),
           });
+          if (!res2.ok) throw new Error(`HTTP ${res2.status}`);
           const data = await res2.json();
           rawText = data?.choices?.[0]?.message?.content ?? "";
         }
       } else {
-        // Z.ai SDK — no streaming, just get the response
         const zai = await ZAI.create();
         const completion = await zai.chat.completions.create({
-          messages: messages as any,
+          messages: messages as never,
           temperature: 0.4,
           max_tokens: 400,
         });
         rawText = completion.choices?.[0]?.message?.content ?? "";
       }
     } else {
-      // Other providers
       const cfg = PROVIDERS[provider.providerId];
-      if (!cfg) throw new Error("unknown provider");
       const baseUrl = provider.baseUrl || cfg.baseUrl;
       const model = provider.model || cfg.defaultModel;
       const apiKey = provider.apiKey || "";
-      if (cfg.requiresKey && !apiKey) throw new Error(`API key required for ${cfg.label}`);
 
       if (cfg.apiStyle === "openai") {
         const url = baseUrl.endsWith("/") ? `${baseUrl}chat/completions` : `${baseUrl}/chat/completions`;
@@ -149,7 +159,7 @@ export async function POST(req: NextRequest) {
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
         rawText = data?.choices?.[0]?.message?.content ?? "";
-      } else if (cfg.apiStyle === "anthropic") {
+      } else {
         const url = baseUrl.endsWith("/") ? `${baseUrl}messages` : `${baseUrl}/messages`;
         const res = await fetch(url, {
           method: "POST",
@@ -163,51 +173,64 @@ export async function POST(req: NextRequest) {
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
         rawText = data?.content?.[0]?.text ?? "";
-      } else {
-        throw new Error("Provider not supported");
       }
     }
+  } catch (e) {
+    console.error("[interpret-stream] LLM error, using keyword fallback:", e);
+    rawText = "";
+  }
 
-    // Parse the result
-    const match = rawText.match(/\{[\s\S]*\}/);
-    let parsed: any = null;
-    if (match) {
-      try { parsed = JSON.parse(match[0]); } catch {}
+  // ---- Parse the result ----
+  let parsed: {
+    moduleType: FallbackModuleType;
+    title: string;
+    subtitle?: string;
+    aiMessage: string;
+    prompt?: string;
+    config?: Record<string, unknown>;
+    codePreview: string[];
+  } | null = null;
+
+  const match = rawText.match(/\{[\s\S]*\}/);
+  if (match) {
+    try {
+      const obj = JSON.parse(match[0]);
+      const moduleType = (ALLOWED_MODULES.includes(obj.moduleType) ? obj.moduleType : "chat") as FallbackModuleType;
+      const title = (obj.title ?? "Module").toString().slice(0, 60);
+      parsed = {
+        moduleType,
+        title,
+        subtitle: obj.subtitle ? String(obj.subtitle).slice(0, 80) : undefined,
+        aiMessage: (obj.aiMessage ?? `Spawning ${title}.`).toString(),
+        prompt: moduleType === "custom" && obj.prompt ? String(obj.prompt).slice(0, 500) : undefined,
+        config: obj.config && typeof obj.config === "object" ? obj.config : undefined,
+        codePreview: buildCodePreview(moduleType, title),
+      };
+    } catch {
+      parsed = null;
     }
+  }
 
-    if (!parsed) {
+  if (!parsed) {
+    if (rawText.trim()) {
+      // LLM answered but not JSON — show it as a chat reply
       parsed = {
         moduleType: "chat",
-        title: "Response",
-        aiMessage: rawText.slice(0, 200) || "I didn't understand that. Try again.",
+        title: lang === "fr" ? "Réponse" : "Response",
+        aiMessage: rawText.slice(0, 500),
+        codePreview: buildCodePreview("chat", "Response"),
       };
+    } else {
+      // Offline / no key — keyword fallback so the dock still spawns
+      parsed = fallbackInterpret(prompt, lang);
     }
-
-    // Send the final result
-    const sseStream = new ReadableStream({
-      start(controller) {
-        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "done", result: parsed })}\n\n`));
-        controller.close();
-      },
-    });
-
-    return new Response(sseStream, {
-      headers: {
-        "Content-Type": "text/event-stream",
-        "Cache-Control": "no-cache",
-        Connection: "keep-alive",
-      },
-    });
-  } catch (e) {
-    const encoder = new TextEncoder();
-    const sseStream = new ReadableStream({
-      start(controller) {
-        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "error", error: e instanceof Error ? e.message : String(e) })}\n\n`));
-        controller.close();
-      },
-    });
-    return new Response(sseStream, {
-      headers: { "Content-Type": "text/event-stream" },
-    });
   }
+
+  return new Response(sseMessage({ type: "done", result: parsed }), {
+    headers: {
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache",
+      Connection: "keep-alive",
+    },
+  });
 }

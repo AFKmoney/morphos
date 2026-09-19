@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Search, CornerDownLeft, ArrowUp, ArrowDown } from "lucide-react";
 import { useWindowStore, type ModuleType } from "@/lib/window-store";
-import { MODULE_REGISTRY, getModuleMeta } from "./module-registry";
+import { MODULE_REGISTRY, getModuleMeta, getDefaultModuleSize } from "./module-registry";
 import { useSettings } from "@/lib/settings-store";
 import { useT } from "@/lib/use-t";
 import { cn } from "@/lib/utils";
@@ -18,35 +18,6 @@ interface Command {
   action: () => void;
   group: "spawn" | "system";
 }
-
-const MODULE_SIZES: Record<string, { width: number; height: number }> = {
-  chat: { width: 460, height: 560 },
-  monitor: { width: 540, height: 420 },
-  dashboard: { width: 720, height: 480 },
-  terminal: { width: 600, height: 380 },
-  kanban: { width: 680, height: 460 },
-  notes: { width: 480, height: 460 },
-  code: { width: 680, height: 480 },
-  weather: { width: 380, height: 460 },
-  clock: { width: 360, height: 240 },
-  music: { width: 420, height: 480 },
-  calculator: { width: 320, height: 440 },
-  stock: { width: 540, height: 380 },
-  camera: { width: 480, height: 420 },
-  metrics: { width: 560, height: 380 },
-  pomodoro: { width: 320, height: 420 },
-  paint: { width: 580, height: 480 },
-  regex: { width: 540, height: 520 },
-  json: { width: 560, height: 440 },
-  colorpicker: { width: 380, height: 540 },
-  qr: { width: 360, height: 480 },
-  devtools: { width: 480, height: 540 },
-  files: { width: 580, height: 460 },
-  browser: { width: 720, height: 560 },
-  calendar: { width: 380, height: 480 },
-  whiteboard: { width: 580, height: 480 },
-  imagegen: { width: 420, height: 560 },
-};
 
 export function CommandPalette({ open, onClose }: { open: boolean; onClose: () => void }) {
   const t = useT();
@@ -66,7 +37,7 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
 
   function quickSpawn(type: ModuleType) {
     const meta = getModuleMeta(type);
-    const def = MODULE_SIZES[type] ?? { width: 480, height: 400 };
+    const def = getDefaultModuleSize(type);
     const offset = windows.length;
     const col = offset % 3;
     const row = Math.floor(offset / 3) % 2;

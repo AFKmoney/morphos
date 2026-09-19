@@ -89,7 +89,7 @@ export function WeatherModule() {
             key={c.name}
             onClick={() => setActiveIdx(i)}
             className={`text-[10px] px-2 py-0.5 rounded flex items-center gap-1 ${
-              i === active ? "bg-cyan-500/20 text-cyan-300 border border-cyan-400/30" : "text-white/50 hover:text-white/80"
+              i === activeIdx ? "bg-cyan-500/20 text-cyan-300 border border-cyan-400/30" : "text-white/50 hover:text-white/80"
             }`}
           >
             <MapPin className="w-2.5 h-2.5" />

@@ -31,10 +31,10 @@ Describe what you need in plain language. MorphOS decides which module to spawn 
 | 📷 Camera | 📡 Metrics | ⏲️ Pomodoro | 🎨 Paint |
 | 🔍 Regex | {} JSON | 🎨 Color Picker | 📱 QR Code |
 | 🔧 Dev Tools | 📁 Files | 🌐 Browser | 📅 Calendar |
-| ✏️ Whiteboard | 🖼️ Image Gen | ✨ Custom AI | |
+| ✏️ Whiteboard | 🖼️ Image Gen | ✨ Custom AI | 🧩 Plugins |
 
-### 🤖 13 LLM Providers
-Z.ai (GLM), OpenAI, Anthropic, Mistral, NVIDIA NIM, LM Studio, Ollama, Groq, OpenRouter, Together AI, Cohere, DeepSeek, and custom endpoints — all with streaming SSE support.
+### 🤖 14 LLM Providers
+Z.ai (GLM), OpenAI, Anthropic, Mistral, NVIDIA NIM, LM Studio, Ollama, Groq, OpenRouter, Together AI, Cohere, DeepSeek, xAI (Grok), and custom endpoints — all with streaming SSE support.
 
 ### 🖥️ Real Window Manager
 - Drag, resize (8 handles), minimize, maximize, restore
@@ -125,13 +125,15 @@ src/
 │   ├── layout.tsx              — ThemeProvider wrapper
 │   └── globals.css             — Dark theme + animations
 ├── lib/
-│   ├── providers.ts            — 13 LLM provider configs
+│   ├── providers.ts            — 14 LLM provider configs
 │   ├── i18n.ts                 — EN/FR translations (130+ keys)
 │   ├── settings-store.ts       — Zustand + localStorage persist
 │   ├── window-store.ts         — Window manager (persisted)
 │   ├── module-state-store.ts   — Module state persistence
 │   ├── ai-context-store.ts     — AI memory (persisted)
 │   ├── vfs-store.ts            — Virtual File System (IndexedDB)
+│   ├── fallback-interpret.ts   — Offline keyword fallback (shared by interpret routes)
+│   ├── plugins/                — Plugin registry + built-in plugins
 │   ├── use-t.ts                — Translation hook
 │   ├── use-voice-input.ts      — Web Speech API hook
 │   └── utils.ts                — Utilities
