@@ -7,6 +7,7 @@ import { useWindowStore, type MorphWindow } from "@/lib/window-store";
 import { getModuleMeta } from "./module-registry";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/use-t";
+import { ModuleErrorBoundary } from "./error-boundary";
 
 interface WindowProps {
   win: MorphWindow;
@@ -26,8 +27,8 @@ interface DragState {
 
 const MIN_W = 280;
 const MIN_H = 200;
-const TOP_BAR_HEIGHT = 48; // Windows can't go above this
-const MARGIN = 4; // Margin from screen edges
+const TOP_BAR_HEIGHT = 48;
+const MARGIN = 4;
 
 export function MorphWindowView({ win }: WindowProps) {
   const t = useT();
@@ -64,9 +65,7 @@ export function MorphWindowView({ win }: WindowProps) {
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
       rafRef.current = requestAnimationFrame(() => {
         if (st.mode === "move") {
-          // Clamp X: left edge >= MARGIN, right edge <= vw - MARGIN
           const nx = Math.max(MARGIN, Math.min(window.innerWidth - st.origW - MARGIN, st.origX + dx));
-          // Clamp Y: top edge >= TOP_BAR_HEIGHT, bottom edge <= vh - MARGIN
           const ny = Math.max(TOP_BAR_HEIGHT, Math.min(window.innerHeight - st.origH - MARGIN, st.origY + dy));
           updateGeometry(winIdRef.current, { x: nx, y: ny });
         } else {
@@ -74,11 +73,9 @@ export function MorphWindowView({ win }: WindowProps) {
           const vw = window.innerWidth;
           const vh = window.innerHeight;
 
-          // East resize: width grows, right edge can't exceed vw - MARGIN
           if (st.mode.includes("e")) {
             nw = Math.max(MIN_W, Math.min(vw - nx - MARGIN, st.origW + dx));
           }
-          // West resize: width grows left, left edge can't go below MARGIN
           if (st.mode.includes("w")) {
             nw = Math.max(MIN_W, st.origW - dx);
             nx = st.origX + (st.origW - nw);
@@ -87,11 +84,9 @@ export function MorphWindowView({ win }: WindowProps) {
               nx = MARGIN;
             }
           }
-          // South resize: height grows, bottom edge can't exceed vh - MARGIN
           if (st.mode.includes("s")) {
             nh = Math.max(MIN_H, Math.min(vh - ny - MARGIN, st.origH + dy));
           }
-          // North resize: height grows up, top edge can't go above TOP_BAR_HEIGHT
           if (st.mode.includes("n")) {
             nh = Math.max(MIN_H, st.origH - dy);
             ny = st.origY + (st.origH - nh);
@@ -114,7 +109,6 @@ export function MorphWindowView({ win }: WindowProps) {
       window.removeEventListener("mouseup", onUp);
     }
 
-    // Store handlers on ref so startDrag can use them
     handlersRef.current = { onMove, onUp };
     return () => {
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
@@ -172,7 +166,6 @@ export function MorphWindowView({ win }: WindowProps) {
       }}
       onMouseDown={() => focusWindow(win.id)}
     >
-      {/* Title bar */}
       <div
         className="flex items-center gap-2 px-3 h-9 border-b border-white/8 bg-black/30 cursor-grab active:cursor-grabbing shrink-0"
         onMouseDown={(e) => startDrag(e, "move")}
@@ -215,12 +208,12 @@ export function MorphWindowView({ win }: WindowProps) {
         </div>
       </div>
 
-      {/* Content */}
       <div className="flex-1 min-h-0 relative">
-        <Component windowId={win.id} code={win.code} />
+        <ModuleErrorBoundary fallbackTitle={`${win.title} crashed`}>
+          <Component windowId={win.id} code={win.code} />
+        </ModuleErrorBoundary>
       </div>
 
-      {/* Resize handles */}
       {!win.maximized && (
         <>
           <div className="resize-handle resize-handle-e" onMouseDown={(e) => startDrag(e, "e")} />
