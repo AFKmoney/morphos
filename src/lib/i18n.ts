@@ -52,6 +52,16 @@ export const translations = {
     "chat.interpreting": "MorphOS is interpreting…",
     "chat.hint": "Hot-swap active · Enter to send · ⇧+Enter for newline",
     "chat.jumpToLatest": "Jump to latest",
+    "chat.stop": "Stop",
+    "chat.stopped": "Stopped.",
+    "chat.clear": "Clear chat",
+    "chat.copy": "Copy message",
+    "chat.copied": "Copied!",
+    "chat.emptyTitle": "Try asking for:",
+    "chat.suggest1": "Become a system monitor",
+    "chat.suggest2": "Add a sales dashboard",
+    "chat.suggest3": "Start a pomodoro timer",
+    "chat.showingLast": "Showing last 100 of {n} messages",
     "chat.fail": "Hot-reload failed. Try again.",
 
     // Window controls
@@ -270,6 +280,16 @@ export const translations = {
     "chat.interpreting": "MorphOS interprète…",
     "chat.hint": "Hot-swap actif · Entrée pour envoyer · ⇧+Entrée pour un saut de ligne",
     "chat.jumpToLatest": "Aller aux derniers messages",
+    "chat.stop": "Stop",
+    "chat.stopped": "Stoppé.",
+    "chat.clear": "Effacer le chat",
+    "chat.copy": "Copier le message",
+    "chat.copied": "Copié !",
+    "chat.emptyTitle": "Essaie de demander :",
+    "chat.suggest1": "Deviens un moniteur système",
+    "chat.suggest2": "Ajoute un dashboard de ventes",
+    "chat.suggest3": "Lance un minuteur pomodoro",
+    "chat.showingLast": "100 derniers messages sur {n} affichés",
     "chat.fail": "Oups, le hot-reload a raté. Réessaie.",
 
     // Window controls

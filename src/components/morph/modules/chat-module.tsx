@@ -5,12 +5,13 @@ import { useWindowStore } from "@/lib/window-store";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Send, Sparkles, Zap, ArrowDown } from "lucide-react";
+import { Send, Sparkles, Zap, ArrowDown, Square, Trash2, Copy, Check } from "lucide-react";
 import { cn, fetchJson } from "@/lib/utils";
 import { useT } from "@/lib/use-t";
 import { useSettings, buildProviderPayload } from "@/lib/settings-store";
 import { useAIContext } from "@/lib/ai-context-store";
 import { getDefaultModuleSize as getDefaultSize } from "../module-registry";
+import { PROVIDERS } from "@/lib/providers";
 
 interface ChatModuleProps {
   windowId?: string;
@@ -27,7 +28,12 @@ export function ChatModule({}: ChatModuleProps) {
   const spawnWindow = useWindowStore((s) => s.spawnWindow);
   const windows = useWindowStore((s) => s.windows);
   const hideSpawnPreview = useWindowStore((s) => s.hideSpawnPreview);
+  const clearChat = useWindowStore((s) => s.clearChat);
   const language = useSettings((s) => s.language);
+  const providerId = useSettings((s) => s.providerId);
+  const savedModels = useSettings((s) => s.models);
+  const providerCfg = PROVIDERS[providerId];
+  const activeModel = savedModels[providerId] ?? providerCfg.defaultModel;
   const aiMemory = useAIContext((s) => s.getSystemContext());
   const addRecentModule = useAIContext((s) => s.addRecentModule);
 
@@ -36,6 +42,12 @@ export function ChatModule({}: ChatModuleProps) {
   const taRef = useRef<HTMLTextAreaElement>(null);
   const stickToBottom = useRef(true);
   const [showJump, setShowJump] = useState(false);
+  const abortRef = useRef<AbortController | null>(null);
+
+  // Focus the input when the chat window opens.
+  useEffect(() => {
+    taRef.current?.focus();
+  }, []);
 
   // Radix ScrollArea scrolls its Viewport, not the Root — target the viewport.
   function viewportEl(): HTMLElement | null {
@@ -85,10 +97,16 @@ export function ChatModule({}: ChatModuleProps) {
     return () => vp.removeEventListener("scroll", onScroll);
   }, []);
 
-  async function send() {
-    const text = input.trim();
+  function stop() {
+    abortRef.current?.abort();
+  }
+
+  async function send(preset?: string) {
+    const text = (preset ?? input).trim();
     if (!text || isInterpreting) return;
     setInput("");
+    abortRef.current = new AbortController();
+    const signal = abortRef.current.signal;
     if (taRef.current) taRef.current.style.height = "auto";
     addChatMessage({ role: "user", content: text });
     setInterpreting(true);
@@ -101,6 +119,7 @@ export function ChatModule({}: ChatModuleProps) {
       const data = await fetchJson("/api/interpret", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        signal,
         body: JSON.stringify({
           prompt: text,
           history,
@@ -150,6 +169,7 @@ export function ChatModule({}: ChatModuleProps) {
           const genData = await fetchJson("/api/generate-module", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
+            signal,
             body: JSON.stringify({
               prompt: data.prompt,
               provider: buildProviderPayload(),
@@ -160,7 +180,10 @@ export function ChatModule({}: ChatModuleProps) {
             displayTitle = genData.title || data.title;
           }
         } catch (e) {
-          addChatMessage({ role: "assistant", content: t("chat.fail") });
+          addChatMessage({
+            role: "assistant",
+            content: signal.aborted ? t("chat.stopped") : t("chat.fail"),
+          });
           hideSpawnPreview();
           setInterpreting(false);
           return;
@@ -214,10 +237,11 @@ export function ChatModule({}: ChatModuleProps) {
     } catch (e) {
       addChatMessage({
         role: "assistant",
-        content: t("chat.fail"),
+        content: signal.aborted ? t("chat.stopped") : t("chat.fail"),
       });
       hideSpawnPreview();
     } finally {
+      abortRef.current = null;
       setInterpreting(false);
     }
   }
@@ -231,9 +255,43 @@ export function ChatModule({}: ChatModuleProps) {
 
   return (
     <div className="flex flex-col h-full relative">
+      <div className="flex items-center gap-1.5 px-4 py-1.5 border-b border-white/8 text-[10px] shrink-0">
+        <span
+          className="w-1.5 h-1.5 rounded-full shrink-0"
+          style={{ background: providerCfg.accent, boxShadow: `0 0 6px ${providerCfg.accent}` }}
+        />
+        <span className="font-medium text-white/70">{providerCfg.label}</span>
+        <span className="font-mono text-white/40 truncate">{activeModel}</span>
+        <button
+          onClick={clearChat}
+          title={t("chat.clear")}
+          className="ml-auto p-1 rounded text-white/30 hover:text-white/80 hover:bg-white/5 shrink-0"
+        >
+          <Trash2 className="w-3 h-3" />
+        </button>
+      </div>
       <ScrollArea className="flex-1 min-h-0 px-4 py-3" ref={scrollRef as never}>
         <div className="space-y-4">
-          {chatMessages.map((m) => (
+          {chatMessages.length === 0 && (
+            <div className="flex flex-col items-center gap-2 py-8">
+              <div className="text-xs text-white/50">{t("chat.emptyTitle")}</div>
+              {[t("chat.suggest1"), t("chat.suggest2"), t("chat.suggest3")].map((s) => (
+                <button
+                  key={s}
+                  onClick={() => send(s)}
+                  className="text-xs px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-white/70 hover:text-white hover:border-cyan-400/40 hover:bg-cyan-500/10 transition"
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
+          )}
+          {chatMessages.length > 100 && (
+            <div className="text-center text-[10px] text-white/30">
+              {t("chat.showingLast", { n: chatMessages.length })}
+            </div>
+          )}
+          {chatMessages.slice(-100).map((m) => (
             <MessageBubble key={m.id} role={m.role} content={m.content} t={t} />
           ))}
           {isInterpreting && (
@@ -277,11 +335,12 @@ export function ChatModule({}: ChatModuleProps) {
           />
           <Button
             size="icon"
-            onClick={send}
-            disabled={!input.trim() || isInterpreting}
+            onClick={() => (isInterpreting ? stop() : send())}
+            disabled={!isInterpreting && !input.trim()}
+            title={isInterpreting ? t("chat.stop") : undefined}
             className="absolute right-1 bottom-1 h-8 w-8 bg-cyan-500/20 hover:bg-cyan-500/30 border border-cyan-400/30 text-cyan-300"
           >
-            <Send className="w-3.5 h-3.5" />
+            {isInterpreting ? <Square className="w-3.5 h-3.5" /> : <Send className="w-3.5 h-3.5" />}
           </Button>
         </div>
         <div className="flex items-center gap-2 mt-2 text-[10px] text-white/40">
@@ -296,11 +355,21 @@ export function ChatModule({}: ChatModuleProps) {
 function MessageBubble({ role, content, t }: { role: string; content: string; t: (k: string) => string }) {
   const isUser = role === "user";
   const isSystem = role === "system";
+  const [copied, setCopied] = useState(false);
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(content);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1200);
+    } catch {
+      /* clipboard unavailable */
+    }
+  }
   return (
     <div className={cn("flex", isUser ? "justify-end" : "justify-start")}>
       <div
         className={cn(
-          "max-w-[88%] rounded-xl px-3 py-2 text-sm leading-relaxed",
+          "max-w-[88%] rounded-xl px-3 py-2 text-sm leading-relaxed relative group",
           isUser
             ? "bg-cyan-500/15 border border-cyan-400/25 text-cyan-50"
             : isSystem
@@ -308,6 +377,15 @@ function MessageBubble({ role, content, t }: { role: string; content: string; t:
             : "bg-white/5 border border-white/10 text-white/90"
         )}
       >
+        {!isSystem && (
+          <button
+            onClick={copy}
+            title={t("chat.copy")}
+            className="absolute top-1 right-1 p-1 rounded opacity-0 group-hover:opacity-100 transition text-white/40 hover:text-white hover:bg-white/10"
+          >
+            {copied ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+          </button>
+        )}
         {!isUser && !isSystem && (
           <div className="text-[10px] uppercase tracking-wider text-cyan-400/70 mb-1 flex items-center gap-1">
             <Sparkles className="w-2.5 h-2.5" />

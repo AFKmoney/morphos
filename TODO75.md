@@ -22,14 +22,14 @@
 - [x] 20 Interpret : vérifier note fallback quand LLM fail
 - [x] 21 Generate-module : vérifier code non-vide + erreur claire
 - [x] 22 Test-provider : migrer anthropic/cohere sur `llmFetch`
-- [ ] 23 Chat : bouton Stop pendant interpreting
-- [ ] 24 `fetchJson` : supporter `signal` (AbortController)
-- [ ] 25 Chat : bouton effacer historique
-- [ ] 26 Chat : copier message (bouton par bulle)
-- [ ] 27 Chat : header provider/modèle actuel
-- [ ] 28 Chat : empty state + suggestions cliquables
-- [ ] 29 Chat : auto-focus input au montage
-- [ ] 30 Chat : hint Shift+Enter (i18n)
+- [x] 23 Chat : bouton Stop pendant interpreting
+- [x] 24 `fetchJson` : supporter `signal` (AbortController)
+- [x] 25 Chat : bouton effacer historique
+- [x] 26 Chat : copier message (bouton par bulle)
+- [x] 27 Chat : header provider/modèle actuel
+- [x] 28 Chat : empty state + suggestions cliquables
+- [x] 29 Chat : auto-focus input au montage
+- [x] 30 Chat : hint Shift+Enter (i18n)
 - [ ] 31 Notes : autosave localStorage (debounce) + indicateur
 - [ ] 32 Kanban : persist board localStorage
 - [ ] 33 Calendar : persist events localStorage
@@ -46,8 +46,8 @@
 - [ ] 44 Dashboard : vérifier loading/empty states
 - [ ] 45 Custom-module : vérifier erreurs compil scrollables
 - [ ] 46 Plugin-module : vérifier scroll + empty state
-- [ ] 47 Chat : cap rendu 100 derniers + compteur
-- [ ] 48 Store : cap `chatMessages` persistés (200)
+- [x] 47 Chat : cap rendu 100 derniers + compteur
+- [x] 48 Store : cap `chatMessages` persistés (200)
 - [ ] 49 Intervals : pause quand onglet caché (monitor/metrics/stock/weather)
 - [ ] 50 Imagegen : `loading="lazy"` + `decoding="async"`
 - [ ] 51 Audit global `setInterval`/`setTimeout` cleanup
@@ -68,7 +68,7 @@
 - [ ] 66 Banner offline (`navigator.onLine`) top-bar
 - [ ] 67 API guards : prompt/modèle/base validés
 - [ ] 68 Cooldown bouton Test 1.5 s
-- [ ] 69 Chat : bloquer envoi vide
+- [x] 69 Chat : bloquer envoi vide
 - [ ] 70 Generate-image : vérifier erreurs affichées
 - [ ] 71 Boot : bouton skip si absent
 - [ ] 72 `scripts/test-api.mjs` (mock + assertions + exit code)
