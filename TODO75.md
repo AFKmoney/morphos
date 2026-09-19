@@ -48,17 +48,17 @@
 - [x] 46 Plugin-module : vérifier scroll + empty state
 - [x] 47 Chat : cap rendu 100 derniers + compteur
 - [x] 48 Store : cap `chatMessages` persistés (200)
-- [ ] 49 Intervals : pause quand onglet caché (monitor/metrics/stock/weather)
+- [x] 49 Intervals : pause quand onglet caché (monitor/metrics/stock/weather)
 - [x] 50 Imagegen : `loading="lazy"` + `decoding="async"`
-- [ ] 51 Audit global `setInterval`/`setTimeout` cleanup
-- [ ] 52 Esc ferme settings-panel
-- [ ] 53 Esc ferme workspace-manager + dialog top-bar
-- [ ] 54 `LangSync` : `document.lang` dynamique
-- [ ] 55 Audit clés `t()` manquantes EN
-- [ ] 56 Audit clés `t()` manquantes FR + fix
-- [ ] 57 `aria-label`/`title` boutons icônes (top 10)
-- [ ] 58 `prefers-reduced-motion` : couper boot/spawn animations
-- [ ] 59 Contrastes `text-white/30` → `/40` ciblés
+- [x] 51 Audit global `setInterval`/`setTimeout` cleanup
+- [x] 52 Esc ferme settings-panel
+- [x] 53 Esc ferme workspace-manager + dialog top-bar
+- [x] 54 `LangSync` : `document.lang` dynamique
+- [x] 55 Audit clés `t()` manquantes EN
+- [x] 56 Audit clés `t()` manquantes FR + fix
+- [x] 57 `aria-label`/`title` boutons icônes (top 10)
+- [x] 58 `prefers-reduced-motion` : couper boot/spawn animations
+- [x] 59 Contrastes `text-white/30` → `/40` ciblés
 - [x] 60 Interpret/generate : migrer anthropic/cohere sur `llmFetch`
 - [x] 61 Constantes `LLM_*_TIMEOUT_MS`
 - [ ] 62 `fetchJson<T>` générique (non-breaking)

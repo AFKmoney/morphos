@@ -201,7 +201,7 @@ export function FilesModule() {
           />
         ) : (
           <pre className="flex-1 min-h-0 overflow-auto thin-scroll p-3 text-[11px] font-mono text-white/80 whitespace-pre-wrap">
-            {fileContent ?? <span className="text-white/30">Select a file to preview</span>}
+            {fileContent ?? <span className="text-white/40">Select a file to preview</span>}
           </pre>
         )}
       </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   X, Key, Globe, Palette, Info, Check, AlertCircle, Loader2,
@@ -18,6 +18,15 @@ export function SettingsPanel() {
   const close = useSettings((s) => s.closeSettings);
   const t = useT();
   const [tab, setTab] = useState<Tab>("provider");
+
+  useEffect(() => {
+    if (!open) return;
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") close();
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open, close]);
 
   return (
     <AnimatePresence>
@@ -48,6 +57,8 @@ export function SettingsPanel() {
               </div>
               <button
                 onClick={close}
+                title={t("common.close")}
+                aria-label={t("settings.close")}
                 className="w-8 h-8 rounded-md text-white/40 hover:text-white hover:bg-white/5 flex items-center justify-center"
               >
                 <X className="w-4 h-4" />

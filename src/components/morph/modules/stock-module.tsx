@@ -65,7 +65,7 @@ export function StockModule() {
     }
 
     fetchPrices();
-    const id = setInterval(fetchPrices, 15000);
+    const id = setInterval(() => { if (!document.hidden) fetchPrices(); }, 15000);
     return () => { active = false; clearInterval(id); };
   }, [retryTick]);
 

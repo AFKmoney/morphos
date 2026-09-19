@@ -15,6 +15,15 @@ export function TopBar({ onOpenWorkspaces }: { onOpenWorkspaces: () => void }) {
   const t = useT();
   const [paletteOpen, setPaletteOpen] = useState(false);
 
+  useEffect(() => {
+    if (!paletteOpen) return;
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setPaletteOpen(false);
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [paletteOpen]);
+
   // Listen for context menu "open palette" event
   useEffect(() => {
     function onOpenPalette() { setPaletteOpen(true); }

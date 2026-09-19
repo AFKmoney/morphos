@@ -40,6 +40,7 @@ export function DashboardModule() {
 
   useEffect(() => {
     const id = setInterval(() => {
+      if (document.hidden) return;
       setLiveSeries((prev) => {
         const next = Math.max(20, Math.min(100, (prev[prev.length - 1]?.v ?? 60) + (Math.random() - 0.5) * 20));
         return [...prev.slice(1), { t: (prev[prev.length - 1]?.t ?? 0) + 1, v: next }];

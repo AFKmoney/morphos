@@ -40,6 +40,7 @@ export function MonitorModule() {
     let lastEntries = performance.getEntriesByType("resource") as PerformanceResourceTiming[];
 
     const id = setInterval(() => {
+      if (document.hidden) return;
       // CPU: estimate from main thread blocking (rough)
       // Use requestAnimationFrame timing to estimate thread contention
       const navEntries = performance.getEntriesByType("navigation") as PerformanceNavigationTiming[];
@@ -93,7 +94,7 @@ export function MonitorModule() {
   const [uptime, setUptime] = useState(0);
   useEffect(() => {
     const start = Date.now();
-    const id = setInterval(() => setUptime(Date.now() - start), 1000);
+    const id = setInterval(() => { if (!document.hidden) setUptime(Date.now() - start); }, 1000);
     return () => clearInterval(id);
   }, []);
 

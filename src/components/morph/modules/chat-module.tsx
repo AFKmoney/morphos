@@ -265,7 +265,7 @@ export function ChatModule({}: ChatModuleProps) {
         <button
           onClick={clearChat}
           title={t("chat.clear")}
-          className="ml-auto p-1 rounded text-white/30 hover:text-white/80 hover:bg-white/5 shrink-0"
+          className="ml-auto p-1 rounded text-white/40 hover:text-white/80 hover:bg-white/5 shrink-0"
         >
           <Trash2 className="w-3 h-3" />
         </button>
@@ -287,7 +287,7 @@ export function ChatModule({}: ChatModuleProps) {
             </div>
           )}
           {chatMessages.length > 100 && (
-            <div className="text-center text-[10px] text-white/30">
+            <div className="text-center text-[10px] text-white/40">
               {t("chat.showingLast", { n: chatMessages.length })}
             </div>
           )}

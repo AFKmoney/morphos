@@ -232,6 +232,16 @@ export const translations = {
     "common.confirm": "Confirm",
     "common.loading": "Loading…",
     "common.retry": "Retry",
+    "common.copy": "Copy",
+    "common.download": "Download",
+    "common.clear": "Clear",
+    "common.play": "Play",
+    "common.pause": "Pause",
+    "common.previous": "Previous",
+    "common.next": "Next",
+    "common.undo": "Undo",
+    "common.like": "Like",
+    "common.swap": "Swap",
   },
 
   fr: {
@@ -461,6 +471,16 @@ export const translations = {
     "common.confirm": "Confirmer",
     "common.loading": "Chargement…",
     "common.retry": "Réessayer",
+    "common.copy": "Copier",
+    "common.download": "Télécharger",
+    "common.clear": "Effacer",
+    "common.play": "Lecture",
+    "common.pause": "Pause",
+    "common.previous": "Précédent",
+    "common.next": "Suivant",
+    "common.undo": "Annuler",
+    "common.like": "J'aime",
+    "common.swap": "Échanger",
   },
 } as const;
 

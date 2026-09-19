@@ -145,7 +145,7 @@ export function KanbanModule() {
                     if (e.key === "Escape") { setAdding(null); setNewTitle(""); }
                   }}
                   placeholder="Titre…"
-                  className="w-full bg-transparent text-xs outline-none resize-none text-white/90 placeholder:text-white/30 thin-scroll"
+                  className="w-full bg-transparent text-xs outline-none resize-none text-white/90 placeholder:text-white/40 thin-scroll"
                   rows={2}
                 />
                 <div className="flex gap-1 mt-1">
@@ -165,7 +165,7 @@ export function KanbanModule() {
               </div>
             )}
             {!col.cards.length && adding !== col.id && (
-              <div className="text-[10px] text-white/30 text-center py-4 border border-dashed border-white/10 rounded-md">
+              <div className="text-[10px] text-white/40 text-center py-4 border border-dashed border-white/10 rounded-md">
                 vide
               </div>
             )}

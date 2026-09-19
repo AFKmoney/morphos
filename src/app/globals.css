@@ -173,6 +173,16 @@
   text-shadow: 0 0 8px rgba(244, 114, 182, 0.6), 0 0 20px rgba(244, 114, 182, 0.3);
 }
 
+/* ============ Reduced motion ============ */
+@media (prefers-reduced-motion: reduce) {
+  *, ::before, ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
 /* ============ Scrollbar (glassmorphism) ============ */
 /* Frosted-glass thumb: translucent gradient + hairline border + inset highlight.
    (backdrop-filter doesn't apply to scrollbar pseudo-elements, so the glass

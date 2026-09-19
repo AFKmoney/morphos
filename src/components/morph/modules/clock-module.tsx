@@ -15,7 +15,7 @@ export function ClockModule() {
   const locale = language === "fr" ? "fr-FR" : "en-US";
   const [now, setNow] = useState(new Date());
   useEffect(() => {
-    const id = setInterval(() => setNow(new Date()), 1000);
+    const id = setInterval(() => { if (!document.hidden) setNow(new Date()); }, 1000);
     return () => clearInterval(id);
   }, []);
 

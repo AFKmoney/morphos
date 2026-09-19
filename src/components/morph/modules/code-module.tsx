@@ -2,6 +2,7 @@
 
 import { useState, useRef } from "react";
 import { Play, Copy, Check } from "lucide-react";
+import { useT } from "@/lib/use-t";
 
 const DEFAULT_CODE = `// MorphOS — module live example
 import { useState, useEffect } from "react";
@@ -52,6 +53,7 @@ function highlight(code: string): string {
 }
 
 export function CodeModule() {
+  const t = useT();
   const [code, setCode] = useState(DEFAULT_CODE);
   const [copied, setCopied] = useState(false);
   const taRef = useRef<HTMLTextAreaElement>(null);
@@ -85,7 +87,7 @@ export function CodeModule() {
           <span className="w-2 h-2 rounded-full bg-emerald-400/70" />
         </div>
         <span className="text-[10px] text-white/40 flex-1 text-center font-mono">counter.tsx · live</span>
-        <button onClick={copy} className="text-white/50 hover:text-cyan-300">
+        <button onClick={copy} title={t("common.copy")} className="text-white/50 hover:text-cyan-300">
           {copied ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
         </button>
       </div>

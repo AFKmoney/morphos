@@ -146,7 +146,7 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
                         <div className="text-sm text-white truncate">{cmd.label}</div>
                         {cmd.hint && <div className="text-[10px] text-white/40 truncate">{cmd.hint}</div>}
                       </div>
-                      <span className="text-[9px] uppercase tracking-wider text-white/30">{cmd.group}</span>
+                      <span className="text-[9px] uppercase tracking-wider text-white/50">{cmd.group}</span>
                       {isSelected && <CornerDownLeft className="w-3 h-3 text-cyan-400" />}
                     </button>
                   );

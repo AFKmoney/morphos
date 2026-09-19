@@ -99,7 +99,7 @@ export function PluginModule() {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search plugins"
-            className="flex-1 bg-transparent text-xs outline-none placeholder:text-white/30"
+            className="flex-1 bg-transparent text-xs outline-none placeholder:text-white/40"
           />
         </div>
       </div>

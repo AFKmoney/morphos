@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef } from "react";
 import { Play, Pause, SkipForward, SkipBack, Heart, Volume2, Music4, Loader2 } from "lucide-react";
 import { useModulePersist } from "@/lib/module-state-store";
+import { useT } from "@/lib/use-t";
 
 interface Track {
   title: string;
@@ -21,6 +22,7 @@ const TRACKS: Track[] = [
 ];
 
 export function MusicModule() {
+  const t = useT();
   const [idx, setIdx] = useModulePersist<number>("music:idx", 0);
   const [playing, setPlaying] = useState(false);
   const [pos, setPos] = useState(0);
@@ -151,18 +153,20 @@ export function MusicModule() {
 
       <div className="flex items-center justify-center gap-3 p-3">
         <button onClick={() => setLiked((l) => ({ ...l, [idx]: !l[idx] }))}
+          title={t("common.like")}
           className={liked[idx] ? "text-pink-400" : "text-white/40 hover:text-white/80"}>
           <Heart className="w-4 h-4" fill={liked[idx] ? "currentColor" : "none"} />
         </button>
-        <button onClick={() => setIdx((i) => (i - 1 + TRACKS.length) % TRACKS.length)} className="text-white/60 hover:text-white">
+        <button onClick={() => setIdx((i) => (i - 1 + TRACKS.length) % TRACKS.length)} title={t("common.previous")} className="text-white/60 hover:text-white">
           <SkipBack className="w-4 h-4" />
         </button>
         <button onClick={togglePlay}
+          title={playing ? t("common.pause") : t("common.play")}
           className="w-9 h-9 rounded-full flex items-center justify-center text-black"
           style={{ background: track.color }}>
           {playing ? <Pause className="w-4 h-4" fill="currentColor" /> : <Play className="w-4 h-4 ml-0.5" fill="currentColor" />}
         </button>
-        <button onClick={() => setIdx((i) => (i + 1) % TRACKS.length)} className="text-white/60 hover:text-white">
+        <button onClick={() => setIdx((i) => (i + 1) % TRACKS.length)} title={t("common.next")} className="text-white/60 hover:text-white">
           <SkipForward className="w-4 h-4" />
         </button>
       </div>

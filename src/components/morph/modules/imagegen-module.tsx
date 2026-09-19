@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Sparkles, Download, Loader2, AlertCircle, Image as ImageIcon } from "lucide-react";
 import { useSettings, buildProviderPayload } from "@/lib/settings-store";
 import { fetchJson } from "@/lib/utils";
+import { useT } from "@/lib/use-t";
 
 const SIZES = [
   { label: "Square", value: "1024x1024" },
@@ -19,6 +20,7 @@ const SUGGESTIONS = [
 ];
 
 export function ImageGenModule() {
+  const t = useT();
   const [prompt, setPrompt] = useState("");
   const [size, setSize] = useState("1024x1024");
   const [loading, setLoading] = useState(false);
@@ -126,6 +128,7 @@ export function ImageGenModule() {
           <img loading="lazy" decoding="async" src={displaySrc} alt={prompt} className="w-full" />
           <button
             onClick={download}
+            title={t("common.download")}
             className="absolute top-2 right-2 w-7 h-7 rounded-md bg-black/60 backdrop-blur text-white/80 hover:text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition"
           >
             <Download className="w-3.5 h-3.5" />

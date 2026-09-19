@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Save, FolderOpen, Trash2, X, Layers } from "lucide-react";
 import { useWindowStore } from "@/lib/window-store";
@@ -12,6 +12,15 @@ export function WorkspaceManager({ open, onClose }: { open: boolean; onClose: ()
   const deleteWorkspace = useWindowStore((s) => s.deleteWorkspace);
   const windows = useWindowStore((s) => s.windows);
   const [name, setName] = useState("");
+
+  useEffect(() => {
+    if (!open) return;
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose();
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open, onClose]);
 
   function save() {
     if (!name.trim() || windows.length === 0) return;
@@ -33,7 +42,7 @@ export function WorkspaceManager({ open, onClose }: { open: boolean; onClose: ()
             <div className="flex items-center gap-2 px-4 py-3 border-b border-white/10">
               <Layers className="w-4 h-4 text-cyan-400" />
               <span className="text-sm font-medium text-white">Workspaces</span>
-              <button onClick={onClose} className="ml-auto text-white/40 hover:text-white">
+              <button onClick={onClose} title="Close" aria-label="Close" className="ml-auto text-white/40 hover:text-white">
                 <X className="w-4 h-4" />
               </button>
             </div>

@@ -381,6 +381,7 @@ export function CommandDock() {
               )}
               <button
                 onClick={send}
+                title={t("dock.send")}
                 disabled={!input.trim() || isInterpreting}
                 className="w-9 h-9 rounded-full bg-gradient-to-br from-cyan-400 to-emerald-400 text-black flex items-center justify-center shrink-0 disabled:opacity-30 disabled:cursor-not-allowed hover:brightness-110 active:scale-95 transition"
               >
@@ -391,7 +392,7 @@ export function CommandDock() {
                 )}
               </button>
             </div>
-            <div className="flex items-center gap-3 text-[9px] text-white/30">
+            <div className="flex items-center gap-3 text-[9px] text-white/40">
               <span className="flex items-center gap-1">
                 <Zap className="w-2 h-2 text-cyan-400" />
                 {t("dock.hotreload")}
