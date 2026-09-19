@@ -17,8 +17,6 @@ const loadingFallback = () => (
   </div>
 );
 
-// Single dynamic import for ALL modules via barrel file
-// This reduces Turbopack memory usage by creating one chunk instead of 26
 const modulesPromise = import("./modules");
 
 const lazyComponents: Record<string, React.LazyExoticComponent<React.ComponentType<{ windowId?: string; code?: string }>>> = {
@@ -90,6 +88,7 @@ const MODULE_KEY_MAP: Record<ModuleType, string> = {
   whiteboard: "WhiteboardModule",
   custom: "CustomModuleRenderer",
   imagegen: "ImageGenModule",
+  plugin: "PluginModule",
 };
 
 const INFO_MAP: Record<ModuleType, Omit<ModuleMeta, "component">> = {
