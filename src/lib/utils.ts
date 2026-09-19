@@ -12,7 +12,13 @@ export function cn(...inputs: ClassValue[]) {
  * `SyntaxError: Unexpected token '<', "<!DOCTYPE "... is not valid JSON`.
  */
 export async function fetchJson(input: RequestInfo | URL, init?: RequestInit): Promise<any> {
-  const res = await fetch(input, init);
+  let res = await fetch(input, init);
+  // The preview proxy (or any gateway) sometimes answers 502/503/504 on a
+  // transient hiccup even though the backend is healthy — retry once.
+  if ([502, 503, 504].includes(res.status)) {
+    await new Promise((r) => setTimeout(r, 1200));
+    res = await fetch(input, init);
+  }
   const text = await res.text();
   if (!text.trim()) {
     throw new Error(`API server returned an empty response (HTTP ${res.status}). Is the MorphOS server running?`);
