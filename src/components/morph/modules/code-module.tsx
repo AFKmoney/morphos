@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Play, Copy, Check } from "lucide-react";
 
 const DEFAULT_CODE = `// MorphOS — module live example
@@ -54,6 +54,21 @@ function highlight(code: string): string {
 export function CodeModule() {
   const [code, setCode] = useState(DEFAULT_CODE);
   const [copied, setCopied] = useState(false);
+  const taRef = useRef<HTMLTextAreaElement>(null);
+  const preRef = useRef<HTMLPreElement>(null);
+  const gutterRef = useRef<HTMLDivElement>(null);
+
+  // The highlight <pre> and the line-number gutter are static layers:
+  // keep them in sync with the textarea's own scrolling.
+  function syncScroll() {
+    const ta = taRef.current;
+    if (!ta) return;
+    if (preRef.current) {
+      preRef.current.scrollTop = ta.scrollTop;
+      preRef.current.scrollLeft = ta.scrollLeft;
+    }
+    if (gutterRef.current) gutterRef.current.scrollTop = ta.scrollTop;
+  }
 
   function copy() {
     navigator.clipboard?.writeText(code);
@@ -76,19 +91,22 @@ export function CodeModule() {
       </div>
       <div className="flex flex-1 min-h-0">
         <div className="flex-1 flex">
-          <div className="px-2 py-3 text-right text-[10px] font-mono text-white/30 select-none bg-black/20 border-r border-white/5">
+          <div ref={gutterRef} className="px-2 py-3 text-right text-[10px] font-mono text-white/30 select-none bg-black/20 border-r border-white/5 overflow-hidden">
             {code.split("\n").map((_, i) => (
               <div key={i} className="leading-5">{i + 1}</div>
             ))}
           </div>
           <div className="flex-1 relative">
             <pre
-              className="absolute inset-0 p-3 text-xs font-mono leading-5 pointer-events-none overflow-hidden text-white/90"
+              ref={preRef}
+              className="absolute inset-0 p-3 text-xs font-mono leading-5 pointer-events-none overflow-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden text-white/90"
               dangerouslySetInnerHTML={{ __html: highlight(code) }}
             />
             <textarea
+              ref={taRef}
               value={code}
               onChange={(e) => setCode(e.target.value)}
+              onScroll={syncScroll}
               spellCheck={false}
               className="absolute inset-0 w-full h-full p-3 bg-transparent text-transparent caret-cyan-400 text-xs font-mono leading-5 outline-none resize-none thin-scroll"
             />

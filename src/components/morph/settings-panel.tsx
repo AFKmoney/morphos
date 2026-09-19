@@ -62,7 +62,7 @@ export function SettingsPanel() {
             </div>
 
             {/* Content */}
-            <div className="flex-1 overflow-y-auto thin-scroll p-5">
+            <div className="flex-1 min-h-0 overflow-y-auto thin-scroll p-5">
               {tab === "provider" && <ProviderTab />}
               {tab === "appearance" && <AppearanceTab />}
               {tab === "about" && <AboutTab />}
@@ -118,12 +118,14 @@ function ProviderTab() {
   const [copied, setCopied] = useState(false);
   const [showKey, setShowKey] = useState(false);
   const customRef = useRef<HTMLInputElement>(null);
+  const testSeq = useRef(0);
 
   const currentKey = apiKeys[providerId] ?? "";
   const currentBaseUrl = baseUrls[providerId] ?? cfg.baseUrl;
   const currentModel = models[providerId] ?? cfg.defaultModel;
 
   function changeProvider(id: ProviderId) {
+    testSeq.current++; // invalidate any in-flight test
     setProvider(id);
     setTestStatus("idle");
     setTestMsg("");
@@ -134,6 +136,7 @@ function ProviderTab() {
   }
 
   async function test(modelOverride?: string) {
+    const seq = ++testSeq.current;
     setTestStatus("testing");
     setTestMsg("");
     setLatencyMs(null);
@@ -149,18 +152,24 @@ function ProviderTab() {
           model: modelOverride ?? (customModel || currentModel),
         }),
       });
+      if (seq !== testSeq.current) return; // stale response (provider switched) — ignore
       setLatencyMs(Math.round(performance.now() - t0));
       if (Array.isArray(data.models)) setAvailModels(data.models);
       if (data.ok) {
         setTestStatus("ok");
         setTested(providerId);
         const n = Array.isArray(data.models) ? data.models.length : 0;
-        setTestMsg((data.reply || "OK") + (n ? ` · ${n} models on endpoint` : ""));
+        setTestMsg(
+          (data.reply || "OK") +
+            (data.modelUsed ? ` · via ${data.modelUsed}` : "") +
+            (n ? ` · ${n} models on endpoint` : "")
+        );
       } else {
         setTestStatus("fail");
         setTestMsg(data.error || "Failed");
       }
     } catch (e) {
+      if (seq !== testSeq.current) return;
       setLatencyMs(Math.round(performance.now() - t0));
       setTestStatus("fail");
       setTestMsg(e instanceof Error ? e.message : String(e));
@@ -283,9 +292,14 @@ function ProviderTab() {
             >
               {showKey ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
             </button>
-            <span className={cn("text-[10px]", currentKey ? "text-emerald-400" : "text-white/40")}>
+            <span className={cn("text-[10px] shrink-0", currentKey ? "text-emerald-400" : "text-white/40")}>
               {currentKey ? t("settings.apiKey.set") : (cfg.keyOptional ? "optional" : t("settings.apiKey.unset"))}
             </span>
+            {currentKey && currentKey !== currentKey.trim() && (
+              <span className="text-[10px] text-amber-400 shrink-0" title={t("settings.test.trimmed")}>
+                ⚠ {t("settings.test.trimmedShort")}
+              </span>
+            )}
           </Field>
         )}
 
@@ -369,7 +383,7 @@ function ProviderTab() {
               {testStatus === "fail" && <AlertCircle className="w-3 h-3" />}
               {testStatus === "testing" && <Loader2 className="w-3 h-3 animate-spin" />}
             </span>
-            <span className="font-mono flex-1 whitespace-pre-wrap break-words max-h-28 overflow-y-auto thin-scroll">
+            <span className="font-mono flex-1 min-h-0 whitespace-pre-wrap break-words max-h-28 overflow-y-auto thin-scroll">
               {testMsg || (testStatus === "ok" ? t("settings.apiKey.ok") : testStatus === "fail" ? t("settings.apiKey.fail") : t("settings.apiKey.testing"))}
               {latencyMs !== null && testStatus !== "testing" && (
                 <span className="opacity-70"> · {latencyMs}ms</span>

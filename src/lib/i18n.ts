@@ -51,6 +51,7 @@ export const translations = {
     "chat.placeholder": "Tell MorphOS what you need…",
     "chat.interpreting": "MorphOS is interpreting…",
     "chat.hint": "Hot-swap active · Enter to send · ⇧+Enter for newline",
+    "chat.jumpToLatest": "Jump to latest",
     "chat.fail": "Hot-reload failed. Try again.",
 
     // Window controls
@@ -119,6 +120,8 @@ export const translations = {
     "settings.test.keyOnly": "key saved, not tested",
     "settings.test.showKey": "Show key",
     "settings.test.hideKey": "Hide key",
+    "settings.test.trimmed": "Leading/trailing spaces detected — they will be trimmed automatically.",
+    "settings.test.trimmedShort": "spaces trimmed",
     "settings.baseUrl": "Base URL",
     "settings.model": "Model",
     "settings.model.custom": "Custom model name",
@@ -266,6 +269,7 @@ export const translations = {
     "chat.placeholder": "Dis à MorphOS ce dont tu as besoin…",
     "chat.interpreting": "MorphOS interprète…",
     "chat.hint": "Hot-swap actif · Entrée pour envoyer · ⇧+Entrée pour un saut de ligne",
+    "chat.jumpToLatest": "Aller aux derniers messages",
     "chat.fail": "Oups, le hot-reload a raté. Réessaie.",
 
     // Window controls
@@ -334,6 +338,8 @@ export const translations = {
     "settings.test.keyOnly": "clé enregistrée, non testée",
     "settings.test.showKey": "Afficher la clé",
     "settings.test.hideKey": "Masquer la clé",
+    "settings.test.trimmed": "Espaces en début/fin détectés — ils seront retirés automatiquement.",
+    "settings.test.trimmedShort": "espaces retirés",
     "settings.baseUrl": "URL de base",
     "settings.model": "Modèle",
     "settings.model.custom": "Nom du modèle personnalisé",

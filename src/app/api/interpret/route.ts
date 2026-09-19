@@ -3,7 +3,7 @@ import ZAI from "z-ai-web-dev-sdk";
 import type { ProviderId, ApiStyle } from "@/lib/providers";
 import { PROVIDERS } from "@/lib/providers";
 import { ALLOWED_MODULES, buildCodePreview, fallbackInterpret } from "@/lib/fallback-interpret";
-import { extractErrorMessage, joinUrl, openaiChat } from "@/lib/llm";
+import { anthropicChat, cohereChat, openaiChat } from "@/lib/llm";
 
 export type ModuleType =
   | "chat" | "monitor" | "dashboard" | "terminal" | "kanban"
@@ -149,28 +149,7 @@ async function callAnthropicStyle(
   temperature: number,
   maxTokens: number
 ): Promise<string> {
-  const url = joinUrl(baseUrl, "messages");
-  const res = await fetch(url, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-api-key": apiKey,
-      "anthropic-version": "2023-06-01",
-    },
-    body: JSON.stringify({
-      model,
-      system: systemPrompt,
-      messages: messages.map((m) => ({ role: m.role === "system" ? "user" : m.role, content: m.content })),
-      temperature,
-      max_tokens: maxTokens,
-    }),
-  });
-  if (!res.ok) {
-    const text = await res.text().catch(() => "");
-    throw new Error(extractErrorMessage(res.status, text));
-  }
-  const data = await res.json();
-  return data?.content?.[0]?.text ?? "";
+  return anthropicChat({ baseUrl, apiKey, model, messages, systemPrompt, temperature, maxTokens });
 }
 
 async function callCohereStyle(
@@ -181,26 +160,7 @@ async function callCohereStyle(
   temperature: number,
   maxTokens: number
 ): Promise<string> {
-  const url = joinUrl(baseUrl, "chat");
-  const res = await fetch(url, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      model,
-      messages,
-      temperature,
-      max_tokens: maxTokens,
-    }),
-  });
-  if (!res.ok) {
-    const text = await res.text().catch(() => "");
-    throw new Error(extractErrorMessage(res.status, text));
-  }
-  const data = await res.json();
-  return data?.message?.content?.[0]?.text ?? data?.text ?? "";
+  return cohereChat({ baseUrl, apiKey, model, messages, temperature, maxTokens });
 }
 
 // ============ Main handler ============
@@ -208,7 +168,7 @@ async function callCohereStyle(
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json().catch(() => ({}));
-    const prompt: string = (body.prompt ?? "").toString().trim();
+    const prompt: string = (body.prompt ?? "").toString().trim().slice(0, 4000);
     const history: { role: string; content: string }[] = Array.isArray(body.history) ? body.history : [];
     const lang: "en" | "fr" = body.language === "fr" ? "fr" : "en";
     const provider: ProviderPayload = body.provider ?? { providerId: "zai", apiKey: "", baseUrl: "", model: "" };

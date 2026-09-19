@@ -24,6 +24,7 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
+  const itemRefs = useRef<(HTMLButtonElement | null)[]>([]);
 
   const spawnWindow = useWindowStore((s) => s.spawnWindow);
   const windows = useWindowStore((s) => s.windows);
@@ -84,6 +85,11 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
 
   const safeSelected = Math.min(selected, Math.max(0, filtered.length - 1));
 
+  // Keep the keyboard-selected item visible while navigating.
+  useEffect(() => {
+    itemRefs.current[safeSelected]?.scrollIntoView({ block: "nearest" });
+  }, [safeSelected, open]);
+
   function onKeyDown(e: React.KeyboardEvent) {
     if (e.key === "ArrowDown") { e.preventDefault(); setSelected((s) => Math.min(s + 1, filtered.length - 1)); }
     else if (e.key === "ArrowUp") { e.preventDefault(); setSelected((s) => Math.max(s - 1, 0)); }
@@ -125,6 +131,9 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
                   return (
                     <button
                       key={cmd.id}
+                      ref={(el) => {
+                        itemRefs.current[i] = el;
+                      }}
                       onClick={cmd.action}
                       onMouseEnter={() => setSelected(i)}
                       className={cn("w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left transition", isSelected ? "bg-cyan-500/15" : "hover:bg-white/5")}

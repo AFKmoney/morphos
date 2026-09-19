@@ -62,7 +62,7 @@ export function DashboardModule() {
         <Kpi label="Avg Cart" value={`€${avgCart}`} delta="+2.1%" up icon={ShoppingCart} color="#f472b6" />
       </div>
 
-      <div className="grid grid-cols-2 gap-2 flex-1 min-h-0">
+      <div className="grid grid-cols-2 gap-2 flex-1 min-h-[240px]">
         <div className="bg-black/30 border border-white/8 rounded-lg p-2 flex flex-col">
           <div className="text-xs text-white/60 px-1 py-1">Ventes vs Visites · 7j</div>
           <ResponsiveContainer width="100%" height="100%">

@@ -66,11 +66,11 @@ export function NotesModule() {
         <textarea
           value={md}
           onChange={(e) => setMd(e.target.value)}
-          className="flex-1 bg-transparent p-3 text-xs font-mono text-white/90 outline-none resize-none thin-scroll"
+          className="flex-1 min-h-0 bg-transparent p-3 text-xs font-mono text-white/90 outline-none resize-none thin-scroll"
           spellCheck={false}
         />
       ) : (
-        <div className="flex-1 overflow-y-auto p-4 thin-scroll prose prose-invert prose-sm max-w-none
+        <div className="flex-1 min-h-0 overflow-y-auto p-4 thin-scroll prose prose-invert prose-sm max-w-none
           prose-headings:text-white prose-p:text-white/80 prose-li:text-white/80
           prose-strong:text-cyan-200 prose-code:text-pink-300 prose-code:bg-white/5 prose-code:px-1 prose-code:rounded
           prose-blockquote:border-cyan-400/50 prose-blockquote:text-white/60

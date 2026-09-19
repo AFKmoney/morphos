@@ -94,7 +94,7 @@ export function StockModule() {
         <span className="font-mono">{new Date().toLocaleTimeString("en")}</span>
       </div>
       {error && <div className="text-[9px] text-amber-400/60">Reconnecting…</div>}
-      <div className="flex-1 space-y-1 overflow-y-auto thin-scroll">
+      <div className="flex-1 min-h-0 space-y-1 overflow-y-auto thin-scroll">
         {quotes.map((q) => {
           const up = q.change24h >= 0;
           return (

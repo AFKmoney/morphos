@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import ZAI from "z-ai-web-dev-sdk";
 import type { ProviderId } from "@/lib/providers";
 import { PROVIDERS } from "@/lib/providers";
-import { extractErrorMessage, joinUrl, openaiChat } from "@/lib/llm";
+import { anthropicChat, openaiChat } from "@/lib/llm";
 
 interface ProviderPayload {
   providerId: ProviderId;
@@ -169,22 +169,7 @@ async function callLLM(provider: ProviderPayload, systemPrompt: string, userProm
   if (cfg.apiStyle === "openai") {
     return openaiChat({ baseUrl, apiKey, model, messages, temperature: 0.3, maxTokens: 2000 });
   } else if (cfg.apiStyle === "anthropic") {
-    const url = joinUrl(baseUrl, "messages");
-    const res = await fetch(url, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": apiKey,
-        "anthropic-version": "2023-06-01",
-      },
-      body: JSON.stringify({ model, system: systemPrompt, messages: messages.map(m => ({ role: m.role === "system" ? "user" : m.role, content: m.content })), temperature: 0.3, max_tokens: 2000 }),
-    });
-    if (!res.ok) {
-      const t = await res.text().catch(() => "");
-      throw new Error(extractErrorMessage(res.status, t));
-    }
-    const data = await res.json();
-    return data?.content?.[0]?.text ?? "";
+    return anthropicChat({ baseUrl, apiKey, model, messages, systemPrompt, temperature: 0.3, maxTokens: 2000 });
   }
   return "";
 }
@@ -192,7 +177,7 @@ async function callLLM(provider: ProviderPayload, systemPrompt: string, userProm
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json().catch(() => ({}));
-    const prompt: string = (body.prompt ?? "").toString().trim();
+    const prompt: string = (body.prompt ?? "").toString().trim().slice(0, 4000);
     const provider: ProviderPayload = body.provider ?? { providerId: "zai", apiKey: "", baseUrl: "", model: "" };
 
     if (!prompt) return NextResponse.json({ error: "missing prompt" }, { status: 400 });

@@ -90,7 +90,7 @@ export function KanbanModule() {
       {cols.map((col) => (
         <div
           key={col.id}
-          className="flex flex-col w-[160px] shrink-0"
+          className="flex flex-col w-[160px] min-h-0 shrink-0"
           onDragOver={(e) => e.preventDefault()}
           onDrop={() => onDropTo(col.id)}
         >
@@ -107,7 +107,7 @@ export function KanbanModule() {
               <Plus className="w-3 h-3" />
             </button>
           </div>
-          <div className="flex-1 space-y-1.5 overflow-y-auto thin-scroll">
+          <div className="flex-1 min-h-0 space-y-1.5 overflow-y-auto thin-scroll">
             {col.cards.map((card) => (
               <div
                 key={card.id}

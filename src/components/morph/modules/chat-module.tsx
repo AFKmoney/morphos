@@ -5,7 +5,7 @@ import { useWindowStore } from "@/lib/window-store";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Send, Sparkles, Zap } from "lucide-react";
+import { Send, Sparkles, Zap, ArrowDown } from "lucide-react";
 import { cn, fetchJson } from "@/lib/utils";
 import { useT } from "@/lib/use-t";
 import { useSettings, buildProviderPayload } from "@/lib/settings-store";
@@ -34,6 +34,15 @@ export function ChatModule({}: ChatModuleProps) {
   const [input, setInput] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
   const taRef = useRef<HTMLTextAreaElement>(null);
+  const stickToBottom = useRef(true);
+  const [showJump, setShowJump] = useState(false);
+
+  // Radix ScrollArea scrolls its Viewport, not the Root — target the viewport.
+  function viewportEl(): HTMLElement | null {
+    const root = scrollRef.current;
+    if (!root) return null;
+    return (root.querySelector('[data-slot="scroll-area-viewport"]') as HTMLElement | null) ?? root;
+  }
 
   // Seed welcome message when language changes
   const [welcomeSeeded, setWelcomeSeeded] = useState<string>("");
@@ -57,10 +66,24 @@ export function ChatModule({}: ChatModuleProps) {
   }, [language, welcomeSeeded, t]);
 
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    const vp = viewportEl();
+    if (vp && stickToBottom.current) {
+      vp.scrollTop = vp.scrollHeight;
     }
   }, [chatMessages.length, isInterpreting]);
+
+  // Track whether the user is reading history (don't yank them to the bottom).
+  useEffect(() => {
+    const vp = viewportEl();
+    if (!vp) return;
+    const onScroll = () => {
+      const dist = vp.scrollHeight - vp.scrollTop - vp.clientHeight;
+      stickToBottom.current = dist < 60;
+      setShowJump(dist > 120);
+    };
+    vp.addEventListener("scroll", onScroll);
+    return () => vp.removeEventListener("scroll", onScroll);
+  }, []);
 
   async function send() {
     const text = input.trim();
@@ -207,8 +230,8 @@ export function ChatModule({}: ChatModuleProps) {
   }
 
   return (
-    <div className="flex flex-col h-full">
-      <ScrollArea className="flex-1 px-4 py-3" ref={scrollRef as never}>
+    <div className="flex flex-col h-full relative">
+      <ScrollArea className="flex-1 min-h-0 px-4 py-3" ref={scrollRef as never}>
         <div className="space-y-4">
           {chatMessages.map((m) => (
             <MessageBubble key={m.id} role={m.role} content={m.content} t={t} />
@@ -221,6 +244,19 @@ export function ChatModule({}: ChatModuleProps) {
           )}
         </div>
       </ScrollArea>
+      {showJump && (
+        <button
+          onClick={() => {
+            stickToBottom.current = true;
+            setShowJump(false);
+            viewportEl()?.scrollTo({ top: 999999, behavior: "smooth" });
+          }}
+          title={t("chat.jumpToLatest")}
+          className="absolute bottom-32 right-4 z-10 w-8 h-8 rounded-full glass-panel-strong border border-cyan-400/30 text-cyan-300 flex items-center justify-center hover:bg-cyan-500/20"
+        >
+          <ArrowDown className="w-4 h-4" />
+        </button>
+      )}
 
       <div className="border-t border-white/10 p-3">
         <div className="relative">

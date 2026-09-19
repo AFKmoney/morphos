@@ -196,11 +196,11 @@ export function FilesModule() {
           <textarea
             value={editContent}
             onChange={(e) => setEditContent(e.target.value)}
-            className="flex-1 bg-black/40 text-[11px] font-mono text-white/90 outline-none resize-none p-3 thin-scroll"
+            className="flex-1 min-h-0 bg-black/40 text-[11px] font-mono text-white/90 outline-none resize-none p-3 thin-scroll"
             spellCheck={false}
           />
         ) : (
-          <pre className="flex-1 overflow-auto thin-scroll p-3 text-[11px] font-mono text-white/80 whitespace-pre-wrap">
+          <pre className="flex-1 min-h-0 overflow-auto thin-scroll p-3 text-[11px] font-mono text-white/80 whitespace-pre-wrap">
             {fileContent ?? <span className="text-white/30">Select a file to preview</span>}
           </pre>
         )}

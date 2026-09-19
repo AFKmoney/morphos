@@ -52,7 +52,7 @@ function sseError(message: string): Response {
 
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({}));
-  const prompt: string = (body.prompt ?? "").toString().trim();
+  const prompt: string = (body.prompt ?? "").toString().trim().slice(0, 4000);
   const history: { role: string; content: string }[] = Array.isArray(body.history) ? body.history : [];
   const lang: "en" | "fr" = body.language === "fr" ? "fr" : "en";
   const provider: ProviderPayload = body.provider ?? { providerId: "zai", apiKey: "", baseUrl: "", model: "" };

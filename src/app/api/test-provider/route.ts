@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import ZAI from "z-ai-web-dev-sdk";
 import { PROVIDERS, type ProviderId } from "@/lib/providers";
-import { extractErrorMessage, joinUrl, LlmError, openaiChat, openaiModels } from "@/lib/llm";
+import { anthropicChat, cohereChat, LlmError, openaiChat, openaiModels } from "@/lib/llm";
 
 interface TestPayload {
   providerId: ProviderId;
@@ -110,37 +110,11 @@ export async function POST(req: NextRequest) {
 
       let reply = "";
       if (cfg.apiStyle === "anthropic") {
-        const url = joinUrl(baseUrl, "messages");
-        const res = await fetch(url, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "x-api-key": apiKey,
-            "anthropic-version": "2023-06-01",
-          },
-          body: JSON.stringify({ model, messages, max_tokens: 10 }),
-        });
-        if (!res.ok) {
-          const t = await res.text().catch(() => "");
-          return NextResponse.json({ ok: false, error: extractErrorMessage(res.status, t) }, { status: 502 });
-        }
-        const data = await res.json();
-        reply = data?.content?.[0]?.text ?? "";
+        reply = await anthropicChat({ baseUrl, apiKey, model, messages, maxTokens: 10 });
       } else if (cfg.apiStyle === "cohere") {
-        const url = joinUrl(baseUrl, "chat");
-        const res = await fetch(url, {
-          method: "POST",
-          headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
-          body: JSON.stringify({ model, messages, max_tokens: 10 }),
-        });
-        if (!res.ok) {
-          const t = await res.text().catch(() => "");
-          return NextResponse.json({ ok: false, error: extractErrorMessage(res.status, t) }, { status: 502 });
-        }
-        const data = await res.json();
-        reply = data?.message?.content?.[0]?.text ?? data?.text ?? "";
+        reply = await cohereChat({ baseUrl, apiKey, model, messages, maxTokens: 10 });
       }
-      return NextResponse.json({ ok: true, reply: reply.slice(0, 80) });
+      return NextResponse.json({ ok: true, keyOk: true, modelUsed: model, reply: reply.slice(0, 80) });
     } catch (e) {
       return NextResponse.json({ ok: false, error: String(e instanceof Error ? e.message : e) }, { status: 502 });
     }

@@ -423,7 +423,7 @@ function ChatHistory() {
   }, [chatMessages.length, isInterpreting]);
 
   return (
-    <div ref={scrollRef} className="flex-1 overflow-y-auto p-3 space-y-3 thin-scroll">
+    <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto p-3 space-y-3 thin-scroll">
       {chatMessages.map((m) => (
         <div key={m.id} className={cn("flex", m.role === "user" ? "justify-end" : "justify-start")}>
           <div
