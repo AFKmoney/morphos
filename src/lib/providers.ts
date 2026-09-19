@@ -13,6 +13,7 @@ export type ProviderId =
   | "together"
   | "cohere"
   | "deepseek"
+  | "xai"
   | "custom";
 
 export type ApiStyle = "openai" | "anthropic" | "cohere";
@@ -21,23 +22,16 @@ export interface ProviderConfig {
   id: ProviderId;
   label: string;
   description: string;
-  /** Default base URL (OpenAI-style chat completions endpoint) */
   baseUrl: string;
-  /** Whether an API key is required (false for local) */
   requiresKey: boolean;
-  /** Whether an API key is optional (shown even if not required) */
   keyOptional?: boolean;
-  /** Where the API key is typically obtained */
   keyHint: string;
   docsUrl: string;
   defaultModel: string;
   models: string[];
   apiStyle: ApiStyle;
-  /** Local providers (no API key needed) */
   local?: boolean;
-  /** Whether the user can override baseUrl */
   baseUrlEditable: boolean;
-  /** Accent color for the provider card */
   accent: string;
 }
 
@@ -237,6 +231,20 @@ export const PROVIDERS: Record<ProviderId, ProviderConfig> = {
     apiStyle: "openai",
     baseUrlEditable: true,
     accent: "#4f8bf7",
+  },
+  xai: {
+    id: "xai",
+    label: "xAI (Grok)",
+    description: "Grok — OpenAI-compatible xAI API",
+    baseUrl: "https://api.x.ai/v1",
+    requiresKey: true,
+    keyHint: "xai-...",
+    docsUrl: "https://docs.x.ai",
+    defaultModel: "grok-4",
+    models: ["grok-4", "grok-3", "grok-3-mini", "grok-2"],
+    apiStyle: "openai",
+    baseUrlEditable: true,
+    accent: "#e8e8e8",
   },
   custom: {
     id: "custom",
