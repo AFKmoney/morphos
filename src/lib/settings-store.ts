@@ -138,8 +138,9 @@ export function buildProviderPayload() {
   const s = useSettings.getState();
   return {
     providerId: s.providerId,
-    apiKey: s.apiKeys[s.providerId] ?? "",
-    baseUrl: s.baseUrls[s.providerId] ?? "",
-    model: s.models[s.providerId] ?? "",
+    // Trim: pasted keys/URLs often carry trailing whitespace that breaks auth
+    apiKey: (s.apiKeys[s.providerId] ?? "").trim(),
+    baseUrl: (s.baseUrls[s.providerId] ?? "").trim(),
+    model: (s.models[s.providerId] ?? "").trim(),
   };
 }

@@ -140,7 +140,8 @@ function ProviderTab() {
       const data = await res.json();
       if (data.ok) {
         setTestStatus("ok");
-        setTestMsg(data.reply || "OK");
+        const n = Array.isArray(data.models) ? data.models.length : 0;
+        setTestMsg((data.reply || "OK") + (n ? ` · ${n} models on endpoint` : ""));
       } else {
         setTestStatus("fail");
         setTestMsg(data.error || "Failed");

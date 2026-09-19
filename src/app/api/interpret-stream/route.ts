@@ -3,6 +3,7 @@ import ZAI from "z-ai-web-dev-sdk";
 import type { ProviderId } from "@/lib/providers";
 import { PROVIDERS } from "@/lib/providers";
 import { ALLOWED_MODULES, buildCodePreview, fallbackInterpret, type FallbackModuleType } from "@/lib/fallback-interpret";
+import { extractErrorMessage, joinUrl, openaiChat } from "@/lib/llm";
 
 export const dynamic = "force-dynamic";
 
@@ -91,47 +92,7 @@ export async function POST(req: NextRequest) {
       if (provider.apiKey) {
         const baseUrl = provider.baseUrl || "https://api.z.ai/api/paas/v4";
         const model = provider.model || "glm-4.6";
-        const url = baseUrl.endsWith("/") ? `${baseUrl}chat/completions` : `${baseUrl}/chat/completions`;
-        const res = await fetch(url, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${provider.apiKey}`,
-          },
-          body: JSON.stringify({ model, messages, temperature: 0.4, max_tokens: 400, stream: true }),
-        });
-
-        if (res.ok && res.body) {
-          const reader = res.body.getReader();
-          const decoder = new TextDecoder();
-          while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
-            const chunk = decoder.decode(value, { stream: true });
-            for (const line of chunk.split("\n")) {
-              if (line.startsWith("data: ")) {
-                const data = line.slice(6).trim();
-                if (data === "[DONE]") continue;
-                try {
-                  const json = JSON.parse(data);
-                  rawText += json.choices?.[0]?.delta?.content ?? "";
-                } catch { /* partial chunk */ }
-              }
-            }
-          }
-        } else {
-          const res2 = await fetch(url, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${provider.apiKey}`,
-            },
-            body: JSON.stringify({ model, messages, temperature: 0.4, max_tokens: 400 }),
-          });
-          if (!res2.ok) throw new Error(`HTTP ${res2.status}`);
-          const data = await res2.json();
-          rawText = data?.choices?.[0]?.message?.content ?? "";
-        }
+        rawText = await openaiChat({ baseUrl, apiKey: provider.apiKey, model, messages, temperature: 0.4, maxTokens: 400 });
       } else {
         const zai = await ZAI.create();
         const completion = await zai.chat.completions.create({
@@ -148,19 +109,9 @@ export async function POST(req: NextRequest) {
       const apiKey = provider.apiKey || "";
 
       if (cfg.apiStyle === "openai") {
-        const url = baseUrl.endsWith("/") ? `${baseUrl}chat/completions` : `${baseUrl}/chat/completions`;
-        const headers: Record<string, string> = { "Content-Type": "application/json" };
-        if (apiKey) headers["Authorization"] = `Bearer ${apiKey}`;
-        const res = await fetch(url, {
-          method: "POST",
-          headers,
-          body: JSON.stringify({ model, messages, temperature: 0.4, max_tokens: 400 }),
-        });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data = await res.json();
-        rawText = data?.choices?.[0]?.message?.content ?? "";
+        rawText = await openaiChat({ baseUrl, apiKey, model, messages, temperature: 0.4, maxTokens: 400 });
       } else {
-        const url = baseUrl.endsWith("/") ? `${baseUrl}messages` : `${baseUrl}/messages`;
+        const url = joinUrl(baseUrl, "messages");
         const res = await fetch(url, {
           method: "POST",
           headers: {
@@ -170,7 +121,10 @@ export async function POST(req: NextRequest) {
           },
           body: JSON.stringify({ model, system: fullSystemPrompt, messages: messages.map(m => ({ role: m.role === "system" ? "user" : m.role, content: m.content })), temperature: 0.4, max_tokens: 400 }),
         });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        if (!res.ok) {
+          const t = await res.text().catch(() => "");
+          throw new Error(extractErrorMessage(res.status, t));
+        }
         const data = await res.json();
         rawText = data?.content?.[0]?.text ?? "";
       }

@@ -13,7 +13,13 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json().catch(() => ({}));
     const prompt: string = (body.prompt ?? "").toString().trim();
-    const provider: ProviderPayload = body.provider ?? { providerId: "zai", apiKey: "", baseUrl: "", model: "" };
+    const rawProvider: ProviderPayload = body.provider ?? { providerId: "zai", apiKey: "", baseUrl: "", model: "" };
+    const provider: ProviderPayload = {
+      providerId: rawProvider.providerId,
+      apiKey: (rawProvider.apiKey ?? "").trim(),
+      baseUrl: (rawProvider.baseUrl ?? "").trim(),
+      model: (rawProvider.model ?? "").trim(),
+    };
     const size: string = body.size ?? "1024x1024";
 
     if (!prompt) {

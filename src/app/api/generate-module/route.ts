@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import ZAI from "z-ai-web-dev-sdk";
 import type { ProviderId } from "@/lib/providers";
 import { PROVIDERS } from "@/lib/providers";
+import { extractErrorMessage, joinUrl, openaiChat } from "@/lib/llm";
 
 interface ProviderPayload {
   providerId: ProviderId;
@@ -128,29 +129,17 @@ async function callLLM(provider: ProviderPayload, systemPrompt: string, userProm
     if (provider.apiKey) {
       const baseUrl = provider.baseUrl || "https://api.z.ai/api/paas/v4";
       const model = provider.model || "glm-4.6";
-      const url = baseUrl.endsWith("/") ? `${baseUrl}chat/completions` : `${baseUrl}/chat/completions`;
-      const res = await fetch(url, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${provider.apiKey}`,
-        },
-        body: JSON.stringify({
-          model,
-          messages: [
-            { role: "system", content: systemPrompt },
-            { role: "user", content: userPrompt },
-          ],
-          temperature: 0.3,
-          max_tokens: 2000,
-        }),
+      return openaiChat({
+        baseUrl,
+        apiKey: provider.apiKey,
+        model,
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt },
+        ],
+        temperature: 0.3,
+        maxTokens: 2000,
       });
-      if (!res.ok) {
-        const text = await res.text().catch(() => "");
-        throw new Error(`HTTP ${res.status}: ${text.slice(0, 200)}`);
-      }
-      const data = await res.json();
-      return data?.choices?.[0]?.message?.content ?? "";
     }
     // Built-in Z.ai via SDK
     const zai = await ZAI.create();
@@ -178,19 +167,9 @@ async function callLLM(provider: ProviderPayload, systemPrompt: string, userProm
   ];
 
   if (cfg.apiStyle === "openai") {
-    const url = baseUrl.endsWith("/") ? `${baseUrl}chat/completions` : `${baseUrl}/chat/completions`;
-    const headers: Record<string, string> = { "Content-Type": "application/json" };
-    if (apiKey) headers["Authorization"] = `Bearer ${apiKey}`;
-    const res = await fetch(url, {
-      method: "POST",
-      headers,
-      body: JSON.stringify({ model, messages, temperature: 0.3, max_tokens: 2000 }),
-    });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const data = await res.json();
-    return data?.choices?.[0]?.message?.content ?? "";
+    return openaiChat({ baseUrl, apiKey, model, messages, temperature: 0.3, maxTokens: 2000 });
   } else if (cfg.apiStyle === "anthropic") {
-    const url = baseUrl.endsWith("/") ? `${baseUrl}messages` : `${baseUrl}/messages`;
+    const url = joinUrl(baseUrl, "messages");
     const res = await fetch(url, {
       method: "POST",
       headers: {
@@ -200,7 +179,10 @@ async function callLLM(provider: ProviderPayload, systemPrompt: string, userProm
       },
       body: JSON.stringify({ model, system: systemPrompt, messages: messages.map(m => ({ role: m.role === "system" ? "user" : m.role, content: m.content })), temperature: 0.3, max_tokens: 2000 }),
     });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    if (!res.ok) {
+      const t = await res.text().catch(() => "");
+      throw new Error(extractErrorMessage(res.status, t));
+    }
     const data = await res.json();
     return data?.content?.[0]?.text ?? "";
   }

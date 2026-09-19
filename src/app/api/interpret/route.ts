@@ -3,6 +3,7 @@ import ZAI from "z-ai-web-dev-sdk";
 import type { ProviderId, ApiStyle } from "@/lib/providers";
 import { PROVIDERS } from "@/lib/providers";
 import { ALLOWED_MODULES, buildCodePreview, fallbackInterpret } from "@/lib/fallback-interpret";
+import { extractErrorMessage, joinUrl, openaiChat } from "@/lib/llm";
 
 export type ModuleType =
   | "chat" | "monitor" | "dashboard" | "terminal" | "kanban"
@@ -136,27 +137,7 @@ async function callOpenAIStyle(
   temperature: number,
   maxTokens: number
 ): Promise<string> {
-  const url = baseUrl.endsWith("/")
-    ? `${baseUrl}chat/completions`
-    : `${baseUrl}/chat/completions`;
-  const headers: Record<string, string> = { "Content-Type": "application/json" };
-  if (apiKey) headers["Authorization"] = `Bearer ${apiKey}`;
-  const res = await fetch(url, {
-    method: "POST",
-    headers,
-    body: JSON.stringify({
-      model,
-      messages,
-      temperature,
-      max_tokens: maxTokens,
-    }),
-  });
-  if (!res.ok) {
-    const text = await res.text().catch(() => "");
-    throw new Error(`HTTP ${res.status}: ${text.slice(0, 200)}`);
-  }
-  const data = await res.json();
-  return data?.choices?.[0]?.message?.content ?? "";
+  return openaiChat({ baseUrl, apiKey, model, messages, temperature, maxTokens });
 }
 
 async function callAnthropicStyle(
@@ -168,9 +149,7 @@ async function callAnthropicStyle(
   temperature: number,
   maxTokens: number
 ): Promise<string> {
-  const url = baseUrl.endsWith("/")
-    ? `${baseUrl}messages`
-    : `${baseUrl}/messages`;
+  const url = joinUrl(baseUrl, "messages");
   const res = await fetch(url, {
     method: "POST",
     headers: {
@@ -188,7 +167,7 @@ async function callAnthropicStyle(
   });
   if (!res.ok) {
     const text = await res.text().catch(() => "");
-    throw new Error(`HTTP ${res.status}: ${text.slice(0, 200)}`);
+    throw new Error(extractErrorMessage(res.status, text));
   }
   const data = await res.json();
   return data?.content?.[0]?.text ?? "";
@@ -202,9 +181,7 @@ async function callCohereStyle(
   temperature: number,
   maxTokens: number
 ): Promise<string> {
-  const url = baseUrl.endsWith("/")
-    ? `${baseUrl}chat`
-    : `${baseUrl}/chat`;
+  const url = joinUrl(baseUrl, "chat");
   const res = await fetch(url, {
     method: "POST",
     headers: {
@@ -220,7 +197,7 @@ async function callCohereStyle(
   });
   if (!res.ok) {
     const text = await res.text().catch(() => "");
-    throw new Error(`HTTP ${res.status}: ${text.slice(0, 200)}`);
+    throw new Error(extractErrorMessage(res.status, text));
   }
   const data = await res.json();
   return data?.message?.content?.[0]?.text ?? data?.text ?? "";
@@ -269,21 +246,7 @@ export async function POST(req: NextRequest) {
         try {
           const baseUrl = provider.baseUrl || "https://api.z.ai/api/paas/v4";
           const model = provider.model || "glm-4.6";
-          const url = baseUrl.endsWith("/") ? `${baseUrl}chat/completions` : `${baseUrl}/chat/completions`;
-          const res = await fetch(url, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${provider.apiKey}`,
-            },
-            body: JSON.stringify({ model, messages, temperature: 0.4, max_tokens: 400 }),
-          });
-          if (!res.ok) {
-            const text = await res.text().catch(() => "");
-            throw new Error(`HTTP ${res.status}: ${text.slice(0, 200)}`);
-          }
-          const data = await res.json();
-          raw = data?.choices?.[0]?.message?.content ?? "";
+          raw = await openaiChat({ baseUrl, apiKey: provider.apiKey, model, messages, temperature: 0.4, maxTokens: 400 });
         } catch (e) {
           console.error("[interpret] Z.ai custom key error:", e);
           raw = "";
