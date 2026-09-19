@@ -9,7 +9,7 @@ export type ModuleType =
   | "calculator" | "stock" | "camera" | "metrics"
   | "pomodoro" | "paint" | "regex" | "json" | "colorpicker"
   | "qr" | "devtools" | "files" | "browser" | "calendar"
-  | "whiteboard" | "custom" | "imagegen";
+  | "whiteboard" | "custom" | "imagegen" | "plugin";
 
 export interface MorphWindow {
   id: string;
@@ -58,7 +58,6 @@ interface WindowStore {
   } | null;
   workspaces: SavedWorkspace[];
 
-  // actions
   spawnWindow: (w: Omit<MorphWindow, "id" | "z" | "createdAt" | "minimized" | "maximized">) => string;
   closeWindow: (id: string) => void;
   focusWindow: (id: string) => void;
@@ -79,7 +78,7 @@ interface WindowStore {
   saveWorkspace: (name: string) => void;
   loadWorkspace: (id: string) => void;
   deleteWorkspace: (id: string) => void;
-  clearAll: () => void; // Factory reset — clears windows, chat, workspaces
+  clearAll: () => void;
 }
 
 let idCounter = 0;
@@ -181,7 +180,7 @@ export const useWindowStore = create<WindowStore>()(
         set((s) => {
           const vw = window.innerWidth;
           const vh = window.innerHeight;
-          const m = 4; // margin
+          const m = 4;
           const topBar = 48;
           const bottomMargin = m;
           const usableH = vh - topBar - 4 - bottomMargin;
@@ -284,7 +283,6 @@ export const useWindowStore = create<WindowStore>()(
     {
       name: "morphos-window-store",
       storage: createJSONStorage(() => localStorage),
-      // Persist windows, chatMessages, workspaces — NOT transient state
       partialize: (s) => ({
         windows: s.windows,
         chatMessages: s.chatMessages,
