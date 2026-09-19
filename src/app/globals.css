@@ -173,15 +173,31 @@
   text-shadow: 0 0 8px rgba(244, 114, 182, 0.6), 0 0 20px rgba(244, 114, 182, 0.3);
 }
 
-/* ============ Scrollbar ============ */
-.thin-scroll::-webkit-scrollbar { width: 6px; height: 6px; }
+/* ============ Scrollbar (glassmorphism) ============ */
+/* Frosted-glass thumb: translucent gradient + hairline border + inset highlight.
+   (backdrop-filter doesn't apply to scrollbar pseudo-elements, so the glass
+   look is faked with layered translucency.) */
+.thin-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.22) transparent;
+}
+.thin-scroll::-webkit-scrollbar { width: 8px; height: 8px; }
 .thin-scroll::-webkit-scrollbar-track { background: transparent; }
+.thin-scroll::-webkit-scrollbar-corner { background: transparent; }
 .thin-scroll::-webkit-scrollbar-thumb {
-  background: rgba(var(--morph-accent-rgb), 0.25);
-  border-radius: 3px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.28), rgba(255, 255, 255, 0.10));
+  background-clip: padding-box;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 8px;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.25),
+    0 0 8px rgba(var(--morph-accent-rgb), 0.15);
 }
 .thin-scroll::-webkit-scrollbar-thumb:hover {
-  background: rgba(var(--morph-accent-rgb), 0.45);
+  background: linear-gradient(180deg, rgba(var(--morph-accent-rgb), 0.55), rgba(var(--morph-accent-rgb), 0.30));
+  background-clip: padding-box;
+  border-color: rgba(var(--morph-accent-rgb), 0.50);
+  box-shadow: 0 0 12px rgba(var(--morph-accent-rgb), 0.45);
 }
 
 /* ============ Cursor blink for code writing ============ */

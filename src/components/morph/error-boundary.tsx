@@ -35,7 +35,7 @@ export class ModuleErrorBoundary extends React.Component<Props, State> {
           <div className="text-rose-300 text-sm font-medium">
             {this.props.fallbackTitle ?? "Module crashed"}
           </div>
-          <pre className="text-[11px] text-white/50 max-w-full overflow-auto whitespace-pre-wrap">
+          <pre className="text-[11px] text-white/50 max-w-full overflow-auto thin-scroll whitespace-pre-wrap">
             {this.state.error.message}
           </pre>
           <button

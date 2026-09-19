@@ -145,7 +145,7 @@ export function KanbanModule() {
                     if (e.key === "Escape") { setAdding(null); setNewTitle(""); }
                   }}
                   placeholder="Titre…"
-                  className="w-full bg-transparent text-xs outline-none resize-none text-white/90 placeholder:text-white/30"
+                  className="w-full bg-transparent text-xs outline-none resize-none text-white/90 placeholder:text-white/30 thin-scroll"
                   rows={2}
                 />
                 <div className="flex gap-1 mt-1">
