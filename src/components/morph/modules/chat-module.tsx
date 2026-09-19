@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Send, Sparkles, Zap } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, fetchJson } from "@/lib/utils";
 import { useT } from "@/lib/use-t";
 import { useSettings, buildProviderPayload } from "@/lib/settings-store";
 import { useAIContext } from "@/lib/ai-context-store";
@@ -75,7 +75,7 @@ export function ChatModule({}: ChatModuleProps) {
         .filter((m) => m.role !== "system")
         .map((m) => ({ role: m.role, content: m.content }));
 
-      const res = await fetch("/api/interpret", {
+      const data = await fetchJson("/api/interpret", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -90,7 +90,6 @@ export function ChatModule({}: ChatModuleProps) {
           memory: aiMemory,
         }),
       });
-      const data = await res.json();
 
       if (data.error) {
         addChatMessage({ role: "assistant", content: `⚠️ ${data.error}` });
@@ -125,7 +124,7 @@ export function ChatModule({}: ChatModuleProps) {
 
         // Generate the actual code
         try {
-          const genRes = await fetch("/api/generate-module", {
+          const genData = await fetchJson("/api/generate-module", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -133,7 +132,6 @@ export function ChatModule({}: ChatModuleProps) {
               provider: buildProviderPayload(),
             }),
           });
-          const genData = await genRes.json();
           if (genData.code) {
             customCode = genData.code;
             displayTitle = genData.title || data.title;

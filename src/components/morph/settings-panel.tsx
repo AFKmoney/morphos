@@ -9,7 +9,7 @@ import {
 import { useSettings, ACCENT_COLORS, type AccentTheme } from "@/lib/settings-store";
 import { PROVIDER_LIST, PROVIDERS, type ProviderId } from "@/lib/providers";
 import { useT } from "@/lib/use-t";
-import { cn } from "@/lib/utils";
+import { cn, fetchJson } from "@/lib/utils";
 
 type Tab = "provider" | "appearance" | "about";
 
@@ -127,7 +127,7 @@ function ProviderTab() {
     setTestStatus("testing");
     setTestMsg("");
     try {
-      const res = await fetch("/api/test-provider", {
+      const data = await fetchJson("/api/test-provider", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -137,7 +137,6 @@ function ProviderTab() {
           model: customModel || currentModel,
         }),
       });
-      const data = await res.json();
       if (data.ok) {
         setTestStatus("ok");
         const n = Array.isArray(data.models) ? data.models.length : 0;

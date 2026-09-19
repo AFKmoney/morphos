@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useWindowStore } from "@/lib/window-store";
 import { getModuleMeta, getDefaultModuleSize as getDefaultSize } from "./module-registry";
 import { Sparkles, Send, X, Layers, Zap, Hexagon, ChevronUp, Mic, MicOff } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, fetchJson } from "@/lib/utils";
 import { useT } from "@/lib/use-t";
 import { useSettings, buildProviderPayload } from "@/lib/settings-store";
 import { useAIContext } from "@/lib/ai-context-store";
@@ -180,12 +180,11 @@ export function CommandDock() {
         await new Promise((r) => setTimeout(r, 1600));
 
         try {
-          const genRes = await fetch("/api/generate-module", {
+          const genData = await fetchJson("/api/generate-module", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ prompt: data.prompt, provider: buildProviderPayload() }),
           });
-          const genData = await genRes.json();
           if (genData.code) {
             customCode = genData.code;
             displayTitle = genData.title || data.title;

@@ -57,6 +57,27 @@ export class LlmError extends Error {
   }
 }
 
+function hostOf(baseUrl: string): string {
+  try {
+    return new URL((baseUrl || "").trim()).host || baseUrl;
+  } catch {
+    return baseUrl || "(empty base URL)";
+  }
+}
+
+/** fetch() that converts network failures into an actionable LlmError. */
+async function llmFetch(url: string, init: RequestInit, baseUrl: string): Promise<Response> {
+  try {
+    return await fetch(url, init);
+  } catch (e) {
+    const reason = e instanceof Error ? e.message : String(e);
+    throw new LlmError(
+      0,
+      `Network error: cannot reach ${hostOf(baseUrl)} (${reason}). Check the base URL and your internet connection.`
+    );
+  }
+}
+
 async function throwForStatus(res: Response): Promise<void> {
   if (res.ok) return;
   const text = await res.text().catch(() => "");
@@ -86,7 +107,7 @@ export async function openaiChat(args: OpenAIChatArgs): Promise<string> {
   const attempt = async (withTemp: boolean): Promise<Response> => {
     const body: Record<string, unknown> = { model: model.trim(), messages, max_tokens: maxTokens };
     if (withTemp && args.temperature !== undefined) body.temperature = args.temperature;
-    return fetch(url, { method: "POST", headers, body: JSON.stringify(body) });
+    return llmFetch(url, { method: "POST", headers, body: JSON.stringify(body) }, baseUrl);
   };
 
   let res = await attempt(true);
@@ -105,7 +126,7 @@ export async function openaiChat(args: OpenAIChatArgs): Promise<string> {
  */
 export async function openaiModels(args: { baseUrl: string; apiKey: string }): Promise<string[]> {
   const url = joinUrl(args.baseUrl, "models");
-  const res = await fetch(url, { method: "GET", headers: authHeaders(args.apiKey) });
+  const res = await llmFetch(url, { method: "GET", headers: authHeaders(args.apiKey) }, args.baseUrl);
   await throwForStatus(res);
   const data = await res.json().catch(() => ({}));
   const list = Array.isArray(data?.data) ? data.data : [];

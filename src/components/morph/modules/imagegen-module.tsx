@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Sparkles, Download, Loader2, AlertCircle, Image as ImageIcon } from "lucide-react";
 import { useSettings, buildProviderPayload } from "@/lib/settings-store";
+import { fetchJson } from "@/lib/utils";
 
 const SIZES = [
   { label: "Square", value: "1024x1024" },
@@ -35,7 +36,7 @@ export function ImageGenModule() {
     setBase64("");
 
     try {
-      const res = await fetch("/api/generate-image", {
+      const data = await fetchJson("/api/generate-image", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -44,7 +45,6 @@ export function ImageGenModule() {
           provider: buildProviderPayload(),
         }),
       });
-      const data = await res.json();
 
       if (data.error) {
         setError(data.error);
