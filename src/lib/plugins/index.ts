@@ -21,6 +21,3 @@ export {
   unregisterPlugin,
   getPluginRegistry,
 } from "./plugin-registry";
-
-// Ré-exporter les types pour compatibilité
-export type { PluginPermission, PluginCategory, PluginStatus };
