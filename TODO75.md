@@ -30,26 +30,26 @@
 - [x] 28 Chat : empty state + suggestions cliquables
 - [x] 29 Chat : auto-focus input au montage
 - [x] 30 Chat : hint Shift+Enter (i18n)
-- [ ] 31 Notes : autosave localStorage (debounce) + indicateur
-- [ ] 32 Kanban : persist board localStorage
-- [ ] 33 Calendar : persist events localStorage
-- [ ] 34 Terminal : Ctrl+L + cap 500 lignes
-- [ ] 35 Calculator : support clavier physique
-- [ ] 36 Clock : locale depuis `settings.language`
-- [ ] 37 Pomodoro : beep WebAudio fin de session
-- [ ] 38 Imagegen : états loading/erreur clairs
-- [ ] 39 Weather : état erreur + retry
-- [ ] 40 Stock : état erreur + retry
-- [ ] 41 Code-module : Tab insère 2 espaces
-- [ ] 42 Music : persister volume + piste
-- [ ] 43 Camera : vérifier stop tracks on unmount
-- [ ] 44 Dashboard : vérifier loading/empty states
-- [ ] 45 Custom-module : vérifier erreurs compil scrollables
-- [ ] 46 Plugin-module : vérifier scroll + empty state
+- [x] 31 Notes : autosave localStorage (debounce) + indicateur
+- [x] 32 Kanban : persist board localStorage
+- [x] 33 Calendar : persist events localStorage
+- [x] 34 Terminal : Ctrl+L + cap 500 lignes
+- [x] 35 Calculator : support clavier physique
+- [x] 36 Clock : locale depuis `settings.language`
+- [x] 37 Pomodoro : beep WebAudio fin de session
+- [x] 38 Imagegen : états loading/erreur clairs
+- [x] 39 Weather : état erreur + retry
+- [x] 40 Stock : état erreur + retry
+- [x] 41 Code-module : Tab insère 2 espaces
+- [x] 42 Music : persister volume + piste
+- [x] 43 Camera : vérifier stop tracks on unmount
+- [x] 44 Dashboard : vérifier loading/empty states
+- [x] 45 Custom-module : vérifier erreurs compil scrollables
+- [x] 46 Plugin-module : vérifier scroll + empty state
 - [x] 47 Chat : cap rendu 100 derniers + compteur
 - [x] 48 Store : cap `chatMessages` persistés (200)
 - [ ] 49 Intervals : pause quand onglet caché (monitor/metrics/stock/weather)
-- [ ] 50 Imagegen : `loading="lazy"` + `decoding="async"`
+- [x] 50 Imagegen : `loading="lazy"` + `decoding="async"`
 - [ ] 51 Audit global `setInterval`/`setTimeout` cleanup
 - [ ] 52 Esc ferme settings-panel
 - [ ] 53 Esc ferme workspace-manager + dialog top-bar

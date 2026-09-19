@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useSettings } from "@/lib/settings-store";
 
 const ZONES = [
   { city: "Paris", tz: "Europe/Paris", color: "#22d3ee" },
@@ -10,6 +11,8 @@ const ZONES = [
 ];
 
 export function ClockModule() {
+  const language = useSettings((s) => s.language);
+  const locale = language === "fr" ? "fr-FR" : "en-US";
   const [now, setNow] = useState(new Date());
   useEffect(() => {
     const id = setInterval(() => setNow(new Date()), 1000);
@@ -68,7 +71,7 @@ export function ClockModule() {
           <span className="text-cyan-400 text-lg">:{String(sec).padStart(2, "0")}</span>
         </div>
         <div className="text-[10px] text-white/40">
-          {now.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" })}
+          {now.toLocaleDateString(locale, { weekday: "long", day: "numeric", month: "long" })}
         </div>
         <div className="space-y-1 pt-1 border-t border-white/8">
           {ZONES.map((z) => (
@@ -78,7 +81,7 @@ export function ClockModule() {
                 <span className="text-white/60">{z.city}</span>
               </span>
               <span className="font-mono text-white/80 tabular-nums">
-                {now.toLocaleTimeString("fr-FR", {
+                {now.toLocaleTimeString(locale, {
                   hour: "2-digit",
                   minute: "2-digit",
                   timeZone: z.tz,

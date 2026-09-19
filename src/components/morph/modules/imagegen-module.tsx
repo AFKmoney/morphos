@@ -117,13 +117,13 @@ export function ImageGenModule() {
       {error && (
         <div className="text-[11px] text-rose-300 bg-rose-500/10 border border-rose-400/30 rounded px-2 py-1.5 flex items-center gap-1.5">
           <AlertCircle className="w-3 h-3 shrink-0" />
-          <span className="font-mono truncate">{error}</span>
+          <span className="font-mono break-words whitespace-pre-wrap max-h-24 overflow-y-auto thin-scroll">{error}</span>
         </div>
       )}
 
       {displaySrc && !loading && (
         <div className="relative rounded-lg overflow-hidden border border-white/10 group">
-          <img src={displaySrc} alt={prompt} className="w-full" />
+          <img loading="lazy" decoding="async" src={displaySrc} alt={prompt} className="w-full" />
           <button
             onClick={download}
             className="absolute top-2 right-2 w-7 h-7 rounded-md bg-black/60 backdrop-blur text-white/80 hover:text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition"
@@ -156,9 +156,9 @@ export function ImageGenModule() {
                 className="aspect-square rounded-md overflow-hidden border border-white/8 hover:border-cyan-400/30 transition"
               >
                 {h.base64 ? (
-                  <img src={`data:image/png;base64,${h.base64}`} alt={h.prompt} className="w-full h-full object-cover" />
+                  <img loading="lazy" decoding="async" src={`data:image/png;base64,${h.base64}`} alt={h.prompt} className="w-full h-full object-cover" />
                 ) : (
-                  <img src={h.url} alt={h.prompt} className="w-full h-full object-cover" />
+                  <img loading="lazy" decoding="async" src={h.url} alt={h.prompt} className="w-full h-full object-cover" />
                 )}
               </button>
             ))}

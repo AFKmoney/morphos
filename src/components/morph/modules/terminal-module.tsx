@@ -28,7 +28,7 @@ export function TerminalModule() {
   }, [lines]);
 
   function push(...newLines: Line[]) {
-    setLines((prev) => [...prev, ...newLines]);
+    setLines((prev) => [...prev, ...newLines].slice(-500));
   }
 
   const HELP_EN = `Available commands:
@@ -59,7 +59,7 @@ export function TerminalModule() {
     const trimmed = cmd.trim();
     if (!trimmed) return;
     push({ kind: "in", text: trimmed });
-    setHistory((h) => [...h, trimmed]);
+    setHistory((h) => [...h, trimmed].slice(-100));
     setHIdx(-1);
 
     const [name, ...args] = trimmed.split(/\s+/);
@@ -119,6 +119,11 @@ export function TerminalModule() {
   }
 
   function onKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "l") {
+      e.preventDefault();
+      setLines([]);
+      return;
+    }
     if (e.key === "Enter") {
       exec(input);
       setInput("");

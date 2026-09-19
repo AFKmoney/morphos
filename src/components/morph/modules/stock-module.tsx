@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef } from "react";
 import { TrendingUp, TrendingDown, Loader2, AlertCircle } from "lucide-react";
+import { useT } from "@/lib/use-t";
 
 // Real crypto symbols via CoinGecko (free, no API key)
 const SYMBOLS = [
@@ -22,9 +23,11 @@ interface Quote {
 }
 
 export function StockModule() {
+  const t = useT();
   const [quotes, setQuotes] = useState<Quote[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [retryTick, setRetryTick] = useState(0);
   const historyRef = useRef<Record<string, number[]>>({});
 
   useEffect(() => {
@@ -64,7 +67,7 @@ export function StockModule() {
     fetchPrices();
     const id = setInterval(fetchPrices, 15000);
     return () => { active = false; clearInterval(id); };
-  }, []);
+  }, [retryTick]);
 
   if (loading) {
     return (
@@ -80,6 +83,12 @@ export function StockModule() {
         <AlertCircle className="w-6 h-6" />
         <div>Failed to load prices</div>
         <div className="text-[9px] text-white/40">{error}</div>
+        <button
+          onClick={() => { setError(null); setLoading(true); setRetryTick((n) => n + 1); }}
+          className="text-[11px] px-3 py-1 rounded-md bg-white/5 border border-white/10 text-white/70 hover:bg-white/10 hover:text-white"
+        >
+          ↻ {t("common.retry")}
+        </button>
       </div>
     );
   }

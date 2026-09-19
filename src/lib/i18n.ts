@@ -231,6 +231,7 @@ export const translations = {
     "common.save": "Save",
     "common.confirm": "Confirm",
     "common.loading": "Loading…",
+    "common.retry": "Retry",
   },
 
   fr: {
@@ -459,6 +460,7 @@ export const translations = {
     "common.save": "Enregistrer",
     "common.confirm": "Confirmer",
     "common.loading": "Chargement…",
+    "common.retry": "Réessayer",
   },
 } as const;
 

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Cloud, CloudRain, Sun, Wind, Droplets, MapPin, Snowflake, CloudDrizzle, Loader2, AlertCircle } from "lucide-react";
+import { useT } from "@/lib/use-t";
 
 const CITIES = [
   { name: "Paris", lat: 48.85, lon: 2.35 },
@@ -35,10 +36,12 @@ function codeToInfo(code: number): { icon: React.ElementType; label: string; col
 }
 
 export function WeatherModule() {
+  const t = useT();
   const [activeIdx, setActiveIdx] = useState(0);
   const [data, setData] = useState<WeatherData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [retryTick, setRetryTick] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -75,7 +78,7 @@ export function WeatherModule() {
       load();
     });
     return () => { cancelled = true; };
-  }, [activeIdx]);
+  }, [activeIdx, retryTick]);
 
   const city = CITIES[activeIdx];
   const info = data ? codeToInfo(data.weatherCode) : { icon: Cloud, label: "", color: "#94a3b8" };
@@ -109,6 +112,12 @@ export function WeatherModule() {
           <AlertCircle className="w-6 h-6" />
           <div>Failed to load weather</div>
           <div className="text-[9px] text-white/40">{error}</div>
+          <button
+            onClick={() => { setError(null); setLoading(true); setRetryTick((n) => n + 1); }}
+            className="text-[11px] px-3 py-1 rounded-md bg-white/5 border border-white/10 text-white/70 hover:bg-white/10 hover:text-white"
+          >
+            ↻ {t("common.retry")}
+          </button>
         </div>
       )}
 

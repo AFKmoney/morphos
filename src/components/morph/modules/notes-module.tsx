@@ -37,6 +37,11 @@ const morph = createMorph({
 export function NotesModule() {
   const [md, setMd] = useModulePersist<string>("notes:content", DEFAULT_MD);
   const [mode, setMode] = useState<"edit" | "preview">("preview");
+  const [savedAt, setSavedAt] = useState<number | null>(null);
+  function onEdit(v: string) {
+    setMd(v);
+    setSavedAt(Date.now());
+  }
 
   const rendered = useMemo(() => md, [md]);
 
@@ -44,7 +49,14 @@ export function NotesModule() {
     <div className="flex flex-col h-full">
       <div className="flex items-center gap-1 px-3 py-1.5 border-b border-white/8">
         <FileText className="w-3 h-3 text-cyan-400" />
-        <span className="text-[10px] text-white/40 flex-1">notes.md</span>
+        <span className="text-[10px] text-white/40 flex-1">
+          notes.md
+          {savedAt && (
+            <span className="text-emerald-400/70 ml-1.5">
+              ✓ {new Date(savedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
+            </span>
+          )}
+        </span>
         <button
           onClick={() => setMode("edit")}
           className={`text-[10px] px-2 py-0.5 rounded flex items-center gap-1 ${
@@ -65,7 +77,7 @@ export function NotesModule() {
       {mode === "edit" ? (
         <textarea
           value={md}
-          onChange={(e) => setMd(e.target.value)}
+          onChange={(e) => onEdit(e.target.value)}
           className="flex-1 min-h-0 bg-transparent p-3 text-xs font-mono text-white/90 outline-none resize-none thin-scroll"
           spellCheck={false}
         />

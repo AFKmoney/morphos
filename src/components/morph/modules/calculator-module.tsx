@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 interface BtnProps {
   label: string;
@@ -25,6 +25,10 @@ function Btn({ label, onClick, variant }: BtnProps) {
 }
 
 export function CalculatorModule() {
+  const rootRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    rootRef.current?.focus();
+  }, []);
   const [display, setDisplay] = useState("0");
   const [prev, setPrev] = useState<number | null>(null);
   const [op, setOp] = useState<string | null>(null);
@@ -96,8 +100,23 @@ export function CalculatorModule() {
     setOverwrite(true);
   }
 
+  function onKey(e: React.KeyboardEvent) {
+    const k = e.key;
+    if (/^[0-9]$/.test(k)) inputDigit(k);
+    else if (k === "." || k === ",") inputDot();
+    else if (k === "+") chooseOp("+");
+    else if (k === "-") chooseOp("\u2212");
+    else if (k === "*") chooseOp("\u00d7");
+    else if (k === "/") { e.preventDefault(); chooseOp("\u00f7"); }
+    else if (k === "Enter" || k === "=") { e.preventDefault(); equals(); }
+    else if (k === "Escape" || k.toLowerCase() === "c") clearAll();
+    else if (k === "%") percent();
+    else if (k === "Backspace") setDisplay((d) => (d.length <= 1 ? "0" : d.slice(0, -1)));
+    else return;
+  }
+
   return (
-    <div className="flex flex-col h-full p-3 gap-2">
+    <div ref={rootRef} tabIndex={0} onKeyDown={onKey} onClick={(e) => e.currentTarget.focus()} className="flex flex-col h-full p-3 gap-2 outline-none">
       <div className="flex-1 bg-black/30 rounded-lg p-3 flex flex-col items-end justify-end border border-white/8">
         <div className="text-[10px] text-white/40 h-4 font-mono">
           {prev !== null && op ? `${prev} ${op}` : ""}

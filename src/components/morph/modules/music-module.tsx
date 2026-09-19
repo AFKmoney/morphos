@@ -21,11 +21,11 @@ const TRACKS: Track[] = [
 ];
 
 export function MusicModule() {
-  const [idx, setIdx] = useState(0);
+  const [idx, setIdx] = useModulePersist<number>("music:idx", 0);
   const [playing, setPlaying] = useState(false);
   const [pos, setPos] = useState(0);
   const [duration, setDuration] = useState(0);
-  const [volume, setVolume] = useState(0.7);
+  const [volume, setVolume] = useModulePersist<number>("music:volume", 0.7);
   const [loading, setLoading] = useState(false);
   const [liked, setLiked] = useModulePersist<Record<number, boolean>>("music:liked", {});
 

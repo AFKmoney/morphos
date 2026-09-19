@@ -2,10 +2,30 @@
 
 // All extra modules in one file to reduce Turbopack memory pressure
 import { useState, useEffect, useRef } from "react";
+import { useModulePersist } from "@/lib/module-state-store";
 import QRCode from "qrcode";
 import { Play, Pause, RotateCcw, Coffee, Brain, Brush, Eraser, Trash2, Download, Undo2, Check, AlertCircle, Copy, ArrowRightLeft, ChevronLeft, ChevronRight, Lock, Globe, ExternalLink } from "lucide-react";
 
 // ============ POMODORO ============
+function beep(freq = 880) {
+  try {
+    const Ctx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+    const ctx = new Ctx();
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    o.connect(g);
+    g.connect(ctx.destination);
+    o.frequency.value = freq;
+    g.gain.setValueAtTime(0.001, ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.3, ctx.currentTime + 0.02);
+    g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
+    o.start();
+    o.stop(ctx.currentTime + 0.45);
+  } catch {
+    /* audio unavailable */
+  }
+}
+
 export function PomodoroModule() {
   const [seconds, setSeconds] = useState(25 * 60);
   const [running, setRunning] = useState(false);
@@ -17,6 +37,7 @@ export function PomodoroModule() {
     const id = setInterval(() => {
       setSeconds((s) => {
         if (s <= 1) {
+          beep(mode === "work" ? 880 : 660);
           const nextMode = mode === "work" ? "break" : "work";
           setMode(nextMode);
           if (mode === "work") setSessions((n) => n + 1);
@@ -235,7 +256,7 @@ export function CalendarModule() {
   const today = new Date();
   const [view, setView] = useState(new Date(today.getFullYear(), today.getMonth(), 1));
   const [selected, setSelected] = useState(today.toISOString().slice(0,10));
-  const [events, setEvents] = useState<Ev[]>([{date:today.toISOString().slice(0,10),title:"MorphOS session",color:"#22d3ee"},{date:new Date(Date.now()+86400000*2).toISOString().slice(0,10),title:"Ship v1.0",color:"#34d399"}]);
+  const [events, setEvents] = useModulePersist<Ev[]>("calendar:events",[{date:today.toISOString().slice(0,10),title:"MorphOS session",color:"#22d3ee"},{date:new Date(Date.now()+86400000*2).toISOString().slice(0,10),title:"Ship v1.0",color:"#34d399"}]);
   const year = view.getFullYear(), month = view.getMonth();
   const firstDay = new Date(year, month, 1).getDay();
   const daysInMonth = new Date(year, month+1, 0).getDate();

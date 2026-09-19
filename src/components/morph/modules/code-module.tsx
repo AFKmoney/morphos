@@ -107,6 +107,19 @@ export function CodeModule() {
               value={code}
               onChange={(e) => setCode(e.target.value)}
               onScroll={syncScroll}
+              onKeyDown={(e) => {
+                if (e.key === "Tab") {
+                  e.preventDefault();
+                  const ta = e.currentTarget;
+                  const start = ta.selectionStart ?? code.length;
+                  const end = ta.selectionEnd ?? code.length;
+                  const next = code.slice(0, start) + "  " + code.slice(end);
+                  setCode(next);
+                  queueMicrotask(() => {
+                    ta.selectionStart = ta.selectionEnd = start + 2;
+                  });
+                }
+              }}
               spellCheck={false}
               className="absolute inset-0 w-full h-full p-3 bg-transparent text-transparent caret-cyan-400 text-xs font-mono leading-5 outline-none resize-none thin-scroll"
             />
