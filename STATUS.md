@@ -2,27 +2,19 @@
 
 ## Ce qui tourne
 
-Next.js + Zustand. Pas de Svelte. Pas de RAG simulé. Pas de MSL.
-
 ```bash
 git pull
-bun install
+bun install   # ou npm install
 bun run dev   # http://localhost:3000
 ```
 
-- Window manager + 28 modules + plugin
-- `/api/interpret`, `/api/interpret-stream`, `/api/generate-module`
-- Voice = Web Speech API (`src/lib/use-voice-input.ts`) dans le dock
-- Provider xAI / Grok dans Settings
-- Error boundary par fenêtre
+- Window manager + 29 modules (28 built-ins + Plugins)
+- `/api/interpret` et `/api/interpret-stream` acceptent tous les types built-in (plus de redirect silencieux vers custom)
+- Voice = Web Speech API dans le dock
+- Dock toujours visible au tactile (`pointer: coarse`)
+- Plugin registry Zustand via `getState()` + plugin exemple `@morphos/hello`
+- Providers: Z.ai par défaut + xAI/Grok dans Settings
 
-## Slop Mistral — vidé
+## Slop Mistral
 
-Dossiers vidés (tombstones 1 ligne, plus de code) :
-`analytics`, `collaboration`, `integrations`, `marketplace`, `memory`, `msl`,
-`performance`, `security`, `themes` (P3), `users`, `voice` (Svelte),
-`workflows`, `__tests__`.
-
-Panneaux unwired supprimés : `marketplace-panel`, `collaboration-panel`.
-
-Garde : `src/lib/plugins` (branché au registry) + modules built-in.
+Dossiers vidés (tombstones). Ne pas les importer.
