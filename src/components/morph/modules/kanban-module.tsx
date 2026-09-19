@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Plus, X, GripVertical } from "lucide-react";
 import { useModulePersist } from "@/lib/module-state-store";
+import { useT } from "@/lib/use-t";
 
 interface Card { id: string; title: string; tag?: string; }
 interface Column { id: string; title: string; color: string; cards: Card[]; }
@@ -38,6 +39,7 @@ const INITIAL: Column[] = [
 ];
 
 export function KanbanModule() {
+  const t = useT();
   const [cols, setCols] = useModulePersist<Column[]>("kanban:columns", INITIAL);
   const [dragId, setDragId] = useState<string | null>(null);
   const [dragFrom, setDragFrom] = useState<string | null>(null);
@@ -102,6 +104,7 @@ export function KanbanModule() {
             </div>
             <button
               onClick={() => setAdding(adding === col.id ? null : col.id)}
+              title={t("common.add")}
               className="text-white/40 hover:text-white/80"
             >
               <Plus className="w-3 h-3" />
@@ -119,6 +122,7 @@ export function KanbanModule() {
                   <GripVertical className="w-3 h-3 text-white/30 mt-0.5 group-hover:text-white/60" />
                   <div className="flex-1 text-xs text-white/90 leading-snug">{card.title}</div>
                   <button
+                    title={t("common.delete")}
                     onClick={() => deleteCard(card.id)}
                     className="opacity-0 group-hover:opacity-100 text-white/40 hover:text-rose-400"
                   >

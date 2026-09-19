@@ -16,7 +16,7 @@ function looksLikeJson(text: string): boolean {
   return t.startsWith("{") || t.startsWith("[");
 }
 
-export async function fetchJson(input: RequestInfo | URL, init?: RequestInit): Promise<any> {
+export async function fetchJson<T = any>(input: RequestInfo | URL, init?: RequestInit): Promise<T> {
   let res = await fetch(input, init);
   let text = await res.text();
   let status = res.status;

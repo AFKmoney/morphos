@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import ZAI from "z-ai-web-dev-sdk";
-import type { ProviderId } from "@/lib/providers";
+import { PROVIDERS, type ProviderId } from "@/lib/providers";
+import { extractErrorMessage, llmFetch, LLM_CHAT_TIMEOUT_MS } from "@/lib/llm";
 
 interface ProviderPayload {
   providerId: ProviderId;
@@ -48,29 +49,41 @@ export async function POST(req: NextRequest) {
       }
     } else {
       // OpenAI DALL-E style
-      const baseUrl = provider.baseUrl || "https://api.openai.com/v1";
+      const cfg = PROVIDERS[provider.providerId];
+      if (!cfg) {
+        return NextResponse.json({ error: "unknown provider" }, { status: 400 });
+      }
+      const baseUrl = provider.baseUrl || cfg.baseUrl || "https://api.openai.com/v1";
       const model = provider.model || "dall-e-3";
       const apiKey = provider.apiKey;
       if (!apiKey) {
         return NextResponse.json({ error: "API key required for image generation" }, { status: 400 });
       }
       try {
-        const res = await fetch(`${baseUrl}/images/generations`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${apiKey}`,
+        const res = await llmFetch(
+          `${baseUrl.replace(/\/+$/, "")}/images/generations`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${apiKey}`,
+            },
+            body: JSON.stringify({ model, prompt, size, n: 1, response_format: "url" }),
           },
-          body: JSON.stringify({ model, prompt, size, n: 1, response_format: "url" }),
-        });
+          baseUrl,
+          LLM_CHAT_TIMEOUT_MS
+        );
         if (!res.ok) {
           const text = await res.text().catch(() => "");
-          return NextResponse.json({ error: `HTTP ${res.status}: ${text.slice(0, 200)}` }, { status: 502 });
+          return NextResponse.json({ error: extractErrorMessage(res.status, text) }, { status: 502 });
         }
-        const data = await res.json();
+        const data = await res.json().catch(() => ({}));
         imageUrl = data?.data?.[0]?.url ?? "";
       } catch (e) {
-        return NextResponse.json({ error: String(e) }, { status: 502 });
+        return NextResponse.json(
+          { error: e instanceof Error ? e.message : String(e) },
+          { status: 502 }
+        );
       }
     }
 

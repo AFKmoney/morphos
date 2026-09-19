@@ -3,8 +3,10 @@
 import { useState, useEffect } from "react";
 import { ChevronRight, ChevronDown, File, Folder, FileCode, FileText, FolderPlus, FilePlus, Trash2, Edit3, X, Check } from "lucide-react";
 import { useVFS } from "@/lib/vfs-store";
+import { useT } from "@/lib/use-t";
 
 export function FilesModule() {
+  const t = useT();
   const vfs = useVFS();
   const [currentPath, setCurrentPath] = useState("/");
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
@@ -96,14 +98,14 @@ export function FilesModule() {
             {getIcon(node)}
             <span className="truncate flex-1">{node.name}</span>
             <div className="flex gap-0.5 opacity-0 group-hover:opacity-100">
-              <button onClick={(e) => { e.stopPropagation(); setCreating({ type: "file", parent: path }); setNewName(""); }} className="text-white/40 hover:text-cyan-300">
+              <button title={t("common.newFile")} onClick={(e) => { e.stopPropagation(); setCreating({ type: "file", parent: path }); setNewName(""); }} className="text-white/40 hover:text-cyan-300">
                 <FilePlus className="w-2.5 h-2.5" />
               </button>
-              <button onClick={(e) => { e.stopPropagation(); setCreating({ type: "folder", parent: path }); setNewName(""); }} className="text-white/40 hover:text-cyan-300">
+              <button title={t("common.newFolder")} onClick={(e) => { e.stopPropagation(); setCreating({ type: "folder", parent: path }); setNewName(""); }} className="text-white/40 hover:text-cyan-300">
                 <FolderPlus className="w-2.5 h-2.5" />
               </button>
               {path !== "/" && (
-                <button onClick={(e) => { e.stopPropagation(); deleteFile(path); }} className="text-white/40 hover:text-rose-400">
+                <button title={t("common.delete")} onClick={(e) => { e.stopPropagation(); deleteFile(path); }} className="text-white/40 hover:text-rose-400">
                   <Trash2 className="w-2.5 h-2.5" />
                 </button>
               )}
@@ -138,10 +140,10 @@ export function FilesModule() {
         {getIcon(node)}
         <span className="truncate flex-1">{node.name}</span>
         <div className="flex gap-0.5 opacity-0 group-hover:opacity-100">
-          <button onClick={(e) => { e.stopPropagation(); selectFile(path); startEdit(); }} className="text-white/40 hover:text-cyan-300">
+          <button title={t("common.edit")} onClick={(e) => { e.stopPropagation(); selectFile(path); startEdit(); }} className="text-white/40 hover:text-cyan-300">
             <Edit3 className="w-2.5 h-2.5" />
           </button>
-          <button onClick={(e) => { e.stopPropagation(); deleteFile(path); }} className="text-white/40 hover:text-rose-400">
+          <button title={t("common.delete")} onClick={(e) => { e.stopPropagation(); deleteFile(path); }} className="text-white/40 hover:text-rose-400">
             <Trash2 className="w-2.5 h-2.5" />
           </button>
         </div>
@@ -158,10 +160,10 @@ export function FilesModule() {
         <div className="flex items-center justify-between px-2 py-1 mb-1">
           <span className="text-[10px] uppercase tracking-wider text-white/40">Explorer</span>
           <div className="flex gap-1">
-            <button onClick={() => { setCreating({ type: "file", parent: currentPath }); setNewName(""); }} className="text-white/40 hover:text-white">
+            <button title={t("common.newFile")} onClick={() => { setCreating({ type: "file", parent: currentPath }); setNewName(""); }} className="text-white/40 hover:text-white">
               <FilePlus className="w-3 h-3" />
             </button>
-            <button onClick={() => { setCreating({ type: "folder", parent: currentPath }); setNewName(""); }} className="text-white/40 hover:text-white">
+            <button title={t("common.newFolder")} onClick={() => { setCreating({ type: "folder", parent: currentPath }); setNewName(""); }} className="text-white/40 hover:text-white">
               <FolderPlus className="w-3 h-3" />
             </button>
           </div>

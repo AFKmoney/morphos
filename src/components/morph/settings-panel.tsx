@@ -130,6 +130,7 @@ function ProviderTab() {
   const [showKey, setShowKey] = useState(false);
   const customRef = useRef<HTMLInputElement>(null);
   const testSeq = useRef(0);
+  const [cooling, setCooling] = useState(false);
 
   const currentKey = apiKeys[providerId] ?? "";
   const currentBaseUrl = baseUrls[providerId] ?? cfg.baseUrl;
@@ -147,6 +148,7 @@ function ProviderTab() {
   }
 
   async function test(modelOverride?: string) {
+    if (testStatus === "testing" || cooling) return;
     const seq = ++testSeq.current;
     setTestStatus("testing");
     setTestMsg("");
@@ -273,8 +275,13 @@ function ProviderTab() {
             )}
           </div>
           <button
-            onClick={() => test()}
-            disabled={testStatus === "testing"}
+            onClick={() => {
+              if (cooling) return;
+              test();
+              setCooling(true);
+              setTimeout(() => setCooling(false), 1500);
+            }}
+            disabled={testStatus === "testing" || cooling}
             className="text-[11px] px-2.5 py-1 rounded-md bg-cyan-500/20 border border-cyan-400/30 text-cyan-300 hover:bg-cyan-500/30 disabled:opacity-50 flex items-center gap-1"
           >
             {testStatus === "testing" ? (
@@ -584,6 +591,9 @@ function Toggle({ label, value, onChange }: { label: string; value: boolean; onC
       <span className="text-sm text-white/80">{label}</span>
       <button
         onClick={() => onChange(!value)}
+        role="switch"
+        aria-checked={value}
+        aria-label={label}
         className={cn(
           "w-10 h-6 rounded-full relative transition",
           value ? "bg-cyan-500/40" : "bg-white/10"

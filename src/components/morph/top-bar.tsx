@@ -12,6 +12,17 @@ import { PROVIDERS } from "@/lib/providers";
 
 
 export function TopBar({ onOpenWorkspaces }: { onOpenWorkspaces: () => void }) {
+  const [online, setOnline] = useState(typeof navigator === "undefined" ? true : navigator.onLine);
+  useEffect(() => {
+    function up() { setOnline(true); }
+    function down() { setOnline(false); }
+    window.addEventListener("online", up);
+    window.addEventListener("offline", down);
+    return () => {
+      window.removeEventListener("online", up);
+      window.removeEventListener("offline", down);
+    };
+  }, []);
   const t = useT();
   const [paletteOpen, setPaletteOpen] = useState(false);
 
@@ -69,8 +80,15 @@ export function TopBar({ onOpenWorkspaces }: { onOpenWorkspaces: () => void }) {
     ? t("topbar.moduleCount", { count: windows.length })
     : t("topbar.moduleCountPlural", { count: windows.length });
 
+  const offlineLabel = t("topbar.offline");
+
   return (
     <>
+      {!online && (
+        <div className="fixed top-12 left-0 right-0 z-40 bg-amber-500/90 text-black text-[11px] font-medium text-center py-1">
+          ⚠ {offlineLabel}
+        </div>
+      )}
       <div className="fixed top-0 left-0 right-0 z-40 h-12 glass-panel border-b border-white/8 flex items-center px-4 gap-3">
         <div className="flex items-center gap-2">
           <div className="relative">
@@ -181,6 +199,7 @@ export function TopBar({ onOpenWorkspaces }: { onOpenWorkspaces: () => void }) {
                 </div>
                 <button
                   onClick={() => setPaletteOpen(false)}
+                  title={t("common.close")}
                   className="text-white/40 hover:text-white"
                 >
                   <X className="w-4 h-4" />

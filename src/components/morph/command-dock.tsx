@@ -111,8 +111,16 @@ export function CommandDock() {
       });
 
       if (!res.ok) {
-        const errData = await res.json().catch(() => ({}));
-        addChatMessage({ role: "assistant", content: `⚠️ ${errData.error || "Request failed"}` });
+        const errText = await res.text().catch(() => "");
+        let errMsg = "Request failed";
+        try {
+          const parsed = JSON.parse(errText);
+          if (parsed?.error) errMsg = String(parsed.error);
+        } catch {
+          if (/^\s*</.test(errText)) errMsg = `API server returned an HTML page (HTTP ${res.status}) — the MorphOS backend is down or outdated.`;
+          else if (errText.trim()) errMsg = errText.trim().slice(0, 300);
+        }
+        addChatMessage({ role: "assistant", content: `⚠️ ${errMsg}` });
         setInterpreting(false);
         return;
       }
@@ -300,6 +308,7 @@ export function CommandDock() {
               <span className="text-xs font-mono text-cyan-300">{t("app.title")} console</span>
               <button
                 onClick={() => setShowPanel(false)}
+                title={t("common.close")}
                 className="ml-auto text-white/40 hover:text-white"
               >
                 <X className="w-3 h-3" />

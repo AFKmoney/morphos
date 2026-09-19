@@ -152,6 +152,7 @@ export function ImageGenModule() {
             {history.map((h, i) => (
               <button
                 key={i}
+                title={h.prompt}
                 onClick={() => {
                   if (h.base64) { setBase64(h.base64); setImageUrl(""); }
                   else { setImageUrl(h.url); setBase64(""); }

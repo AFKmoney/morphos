@@ -242,6 +242,14 @@ export const translations = {
     "common.undo": "Undo",
     "common.like": "Like",
     "common.swap": "Swap",
+    "common.brush": "Brush",
+    "common.eraser": "Eraser",
+    "common.add": "Add",
+    "common.delete": "Delete",
+    "common.edit": "Edit",
+    "common.newFile": "New file",
+    "common.newFolder": "New folder",
+    "topbar.offline": "You are offline — AI features and live data are unavailable.",
   },
 
   fr: {
@@ -481,6 +489,14 @@ export const translations = {
     "common.undo": "Annuler",
     "common.like": "J'aime",
     "common.swap": "Échanger",
+    "common.brush": "Pinceau",
+    "common.eraser": "Gomme",
+    "common.add": "Ajouter",
+    "common.delete": "Supprimer",
+    "common.edit": "Modifier",
+    "common.newFile": "Nouveau fichier",
+    "common.newFolder": "Nouveau dossier",
+    "topbar.offline": "Vous êtes hors-ligne — IA et données live indisponibles.",
   },
 } as const;
 

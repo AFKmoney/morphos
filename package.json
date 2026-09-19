@@ -11,6 +11,8 @@
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:reset": "prisma migrate reset",
+    "test:api": "node scripts/test-api.mjs",
+    "audit:ui": "node scripts/audit-ui.mjs",
     "tauri:dev": "tauri dev",
     "tauri:build": "tauri build",
     "tauri:start": "tauri start",

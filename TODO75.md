@@ -61,17 +61,17 @@
 - [x] 59 Contrastes `text-white/30` → `/40` ciblés
 - [x] 60 Interpret/generate : migrer anthropic/cohere sur `llmFetch`
 - [x] 61 Constantes `LLM_*_TIMEOUT_MS`
-- [ ] 62 `fetchJson<T>` générique (non-breaking)
-- [ ] 63 README : NVIDIA + run local + troubleshooting
-- [ ] 64 `.env.example` (depuis `process.env` utilisés)
-- [ ] 65 Script `npm run test:api`
-- [ ] 66 Banner offline (`navigator.onLine`) top-bar
-- [ ] 67 API guards : prompt/modèle/base validés
-- [ ] 68 Cooldown bouton Test 1.5 s
+- [x] 62 `fetchJson<T>` générique (non-breaking)
+- [x] 63 README : NVIDIA + run local + troubleshooting
+- [x] 64 `.env.example` (depuis `process.env` utilisés)
+- [x] 65 Script `npm run test:api`
+- [x] 66 Banner offline (`navigator.onLine`) top-bar
+- [x] 67 API guards : prompt/modèle/base validés
+- [x] 68 Cooldown bouton Test 1.5 s
 - [x] 69 Chat : bloquer envoi vide
-- [ ] 70 Generate-image : vérifier erreurs affichées
-- [ ] 71 Boot : bouton skip si absent
-- [ ] 72 `scripts/test-api.mjs` (mock + assertions + exit code)
-- [ ] 73 `scripts/audit-ui.mjs` (checks statiques)
-- [ ] 74 Validation complète : tsc + eslint + build + batterie + restart
-- [ ] 75 TODO75 coché + commit + push + rapport
+- [x] 70 Generate-image : vérifier erreurs affichées
+- [x] 71 Boot : bouton skip si absent
+- [x] 72 `scripts/test-api.mjs` (mock + assertions + exit code)
+- [x] 73 `scripts/audit-ui.mjs` (checks statiques)
+- [x] 74 Validation complète : tsc + eslint + build + batterie + restart
+- [x] 75 TODO75 coché + commit + push + rapport

@@ -93,7 +93,7 @@ export function WorkspaceManager({ open, onClose }: { open: boolean; onClose: ()
                           className="text-[10px] px-2 py-0.5 rounded bg-emerald-500/20 border border-emerald-400/30 text-emerald-300 hover:bg-emerald-500/30">
                           Load
                         </button>
-                        <button onClick={() => deleteWorkspace(ws.id)} className="text-white/40 hover:text-rose-400">
+                        <button onClick={() => deleteWorkspace(ws.id)} title="Delete workspace" className="text-white/40 hover:text-rose-400">
                           <Trash2 className="w-3 h-3" />
                         </button>
                       </div>
