@@ -1,7 +1,7 @@
 "use client";
 
 import { Puzzle } from "lucide-react";
-import { registerPlugin } from "./plugin-registry";
+import { getPluginRegistry } from "./plugin-registry";
 import type { MorphOSPlugin, PluginSource } from "./plugin-types";
 
 function HelloPluginView() {
@@ -39,11 +39,31 @@ export function addBuiltinPlugin(plugin: MorphOSPlugin, source: PluginSource = {
   BUILTIN_PLUGINS.push({ plugin, source });
 }
 
+function registerWithRuntime(plugin: MorphOSPlugin, source: PluginSource) {
+  const store = getPluginRegistry() as unknown as {
+    getState: () => {
+      register: (p: MorphOSPlugin, s?: PluginSource) => string;
+      installed: Map<string, unknown>;
+    };
+    setState: (partial: Record<string, unknown>) => void;
+  };
+  store.getState().register(plugin, source);
+  const installed = new Map(store.getState().installed as Map<string, unknown>);
+  const { component, settingsComponent, onLoad, onUnload, onSettingsChange, api, ...manifest } = plugin;
+  installed.set(plugin.id, {
+    manifest,
+    runtime: { component, settingsComponent, onLoad, onUnload, onSettingsChange, api },
+    status: "unloaded",
+    settings: {},
+  });
+  store.setState({ installed });
+}
+
 export async function initializePlugins(): Promise<void> {
   if (initialized) return;
   for (const { plugin, source } of BUILTIN_PLUGINS) {
     try {
-      registerPlugin(plugin, source);
+      registerWithRuntime(plugin, source);
     } catch (error) {
       console.error(`[PluginInitializer] Failed to register ${plugin.id}:`, error);
     }
