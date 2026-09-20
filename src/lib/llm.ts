@@ -118,6 +118,12 @@ export async function llmFetch(
           `This MorphOS server can reach the internet, but outbound connections to ${host} are blocked from here ` +
           `(typical of hosted preview sandboxes with restricted egress). The provider was NOT tested. ` +
           `Run MorphOS on your own machine ('bun install && bun run dev') and retry there.`;
+      } else {
+        hint =
+          `This MorphOS server itself has no internet access, so your key could NOT be verified from here — ` +
+          `even a valid, activated key fails this test. The test runs server-side, not in your browser. ` +
+          `If you're using the hosted preview, run MorphOS on your own machine ('bun install && bun run dev') and retry there; ` +
+          `if you're already running locally, check that machine's internet connection.`;
       }
     } catch {
       /* keep generic hint */
