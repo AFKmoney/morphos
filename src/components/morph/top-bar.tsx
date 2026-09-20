@@ -126,8 +126,8 @@ export function TopBar({ onOpenWorkspaces }: { onOpenWorkspaces: () => void }) {
           <Cpu className="w-2.5 h-2.5 text-white/40 group-hover:text-white/70" />
         </button>
 
-        <div className="flex-1 flex items-center justify-center gap-2">
-          <span className="text-[10px] text-white/40 font-mono">{moduleLabel}</span>
+        <div className="flex-1 min-w-0 hidden sm:flex items-center justify-center gap-2">
+          <span className="text-[10px] text-white/40 font-mono truncate">{moduleLabel}</span>
           {isInterpreting && (
             <span className="text-[10px] text-cyan-300 font-mono flex items-center gap-1">
               <Activity className="w-2.5 h-2.5 animate-pulse" />

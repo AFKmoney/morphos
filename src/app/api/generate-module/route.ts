@@ -23,7 +23,7 @@ STRICT RULES:
 5. Use "function" declarations preferred.
 6. Style with inline styles (preferred) or Tailwind CSS classes (bg-cyan-500, text-white, p-4, rounded-lg, etc.).
 7. The component receives NO props. Make it self-contained.
-8. For data, use mock data inside the component. Do NOT fetch external URLs.
+8. For data, use REAL live sources: Date/time, performance, localStorage, canvas/SVG, user input. Inline sample arrays are allowed ONLY when the request inherently needs example content (e.g. a todo demo) — and they must be editable by the user. Do NOT fetch external URLs.
 9. The component should be INTERACTIVE and useful — not just static.
 10. Keep it under 150 lines of code.
 11. The component must render something visible immediately.

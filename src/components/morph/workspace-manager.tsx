@@ -81,7 +81,7 @@ export function WorkspaceManager({ open, onClose }: { open: boolean; onClose: ()
                 ) : (
                   <div className="space-y-1.5 max-h-[280px] overflow-y-auto thin-scroll">
                     {workspaces.map((ws) => (
-                      <div key={ws.id} className="flex items-center gap-2 bg-black/30 border border-white/8 rounded-lg px-3 py-2 hover:bg-black/50 transition">
+                      <div key={ws.id} title={ws.windows.map((w) => w.type).join(", ") || "empty"} className="flex items-center gap-2 bg-black/30 border border-white/8 rounded-lg px-3 py-2 hover:bg-black/50 transition">
                         <FolderOpen className="w-3 h-3 text-cyan-400" />
                         <div className="flex-1 min-w-0">
                           <div className="text-xs text-white truncate">{ws.name}</div>

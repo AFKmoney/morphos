@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { ChevronRight, ChevronDown, File, Folder, FileCode, FileText, FolderPlus, FilePlus, Trash2, Edit3, X, Check } from "lucide-react";
+import { ChevronRight, ChevronDown, File, Folder, FileCode, FileText, FolderPlus, FilePlus, Trash2, Edit3, X, Check, Search } from "lucide-react";
 import { useVFS } from "@/lib/vfs-store";
 import { useT } from "@/lib/use-t";
 
@@ -15,6 +15,7 @@ export function FilesModule() {
   const [editContent, setEditContent] = useState("");
   const [creating, setCreating] = useState<{ type: "file" | "folder"; parent: string } | null>(null);
   const [newName, setNewName] = useState("");
+  const [filter, setFilter] = useState("");
 
   useEffect(() => {
     vfs.init();
@@ -76,9 +77,11 @@ export function FilesModule() {
   function renderTree(path: string, depth: number): React.ReactNode {
     const node = vfs.nodes[path];
     if (!node) return null;
+    const q = filter.trim().toLowerCase();
+    if (q && node.type === "file" && !node.name.toLowerCase().includes(q)) return null;
 
     if (node.type === "folder") {
-      const isOpen = expanded.has(path);
+      const isOpen = filter.trim() ? true : expanded.has(path);
       const children = (node.children || [])
         .map(p => vfs.nodes[p])
         .filter(Boolean)
@@ -167,6 +170,20 @@ export function FilesModule() {
               <FolderPlus className="w-3 h-3" />
             </button>
           </div>
+        </div>
+        <div className="flex items-center gap-1.5 bg-black/40 border border-white/10 rounded-md px-2 py-1 mb-1">
+          <Search className="w-2.5 h-2.5 text-white/35 shrink-0" />
+          <input
+            value={filter}
+            onChange={(e) => setFilter(e.target.value)}
+            placeholder="Filter…"
+            className="flex-1 min-w-0 bg-transparent text-[11px] text-white/85 outline-none placeholder:text-white/30"
+          />
+          {filter && (
+            <button onClick={() => setFilter("")} title={t("common.clear")} className="text-white/35 hover:text-white/80">
+              <X className="w-2.5 h-2.5" />
+            </button>
+          )}
         </div>
         {renderTree("/", 0)}
       </div>

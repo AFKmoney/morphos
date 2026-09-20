@@ -195,6 +195,23 @@ const rel = (f) => pathlib.relative(ROOT, f);
   if (!bad) pass("aucun res.json() brut côté client");
 }
 
+// 9. pas de dialogues natifs bloquants (Round 3): prompt/alert/confirm
+{
+  let bad = 0;
+  for (const f of all) {
+    if (f.includes("components/ui/") || f.includes("src/plugins/") || f.includes("__tests__")) continue;
+    const s = read(f);
+    const lines = s.split("\n");
+    lines.forEach((line, i) => {
+      const loc = `${rel(f)}:${i + 1}`;
+      if (/\bprompt\s*\(/.test(line)) { bad++; fail(`${loc}: prompt() natif — utiliser une saisie inline`); }
+      if (/\balert\s*\(/.test(line)) { bad++; fail(`${loc}: alert() natif — utiliser un état inline`); }
+      if (/\bconfirm\s*\(/.test(line)) { bad++; fail(`${loc}: confirm() natif — utiliser une confirmation inline`); }
+    });
+  }
+  if (!bad) pass("zéro dialogue natif bloquant (prompt/alert/confirm)");
+}
+
 // 8. zéro fake/simulé (Round 2): pas de Math.random() dans les données des
 // modules, pas de FAKE_/lorem, pas de locale "en" hardcodée.
 {

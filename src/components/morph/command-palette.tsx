@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Search, CornerDownLeft, ArrowUp, ArrowDown } from "lucide-react";
+import { Search, CornerDownLeft, ArrowUp, ArrowDown, LayoutGrid, Layers } from "lucide-react";
 import { useWindowStore, type ModuleType } from "@/lib/window-store";
 import { MODULE_REGISTRY, getModuleMeta, getDefaultModuleSize } from "./module-registry";
 import { useSettings } from "@/lib/settings-store";
@@ -30,6 +30,8 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
   const spawnWindow = useWindowStore((s) => s.spawnWindow);
   const windows = useWindowStore((s) => s.windows);
   const closeAll = useWindowStore((s) => s.closeAll);
+  const updateGeometry = useWindowStore((s) => s.updateGeometry);
+  const toggleMaximize = useWindowStore((s) => s.toggleMaximize);
   const openSettings = useSettings((s) => s.openSettings);
   const toggleLanguage = useSettings((s) => s.toggleLanguage);
   const fr = useSettings((s) => s.language) === "fr";
@@ -64,6 +66,44 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
     onClose();
   }
 
+  function tileWindows() {
+    const wins = windows.filter((w) => !w.minimized);
+    if (wins.length === 0) return;
+    const cols = Math.ceil(Math.sqrt(wins.length));
+    const rows = Math.ceil(wins.length / cols);
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const top = 48;
+    const cw = Math.floor((vw - 16) / cols);
+    const ch = Math.floor((vh - top - 16) / rows);
+    wins.forEach((w, i) => {
+      if (w.maximized) toggleMaximize(w.id);
+      updateGeometry(w.id, {
+        x: 8 + (i % cols) * cw,
+        y: top + 8 + Math.floor(i / cols) * ch,
+        width: Math.max(280, cw - 8),
+        height: Math.max(200, ch - 8),
+      });
+    });
+    onClose();
+  }
+
+  function cascadeWindows() {
+    const wins = windows.filter((w) => !w.minimized);
+    if (wins.length === 0) return;
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    wins.forEach((w, i) => {
+      if (w.maximized) toggleMaximize(w.id);
+      const k = i % 10;
+      updateGeometry(w.id, {
+        x: Math.max(8, Math.min(vw - 300, 60 + k * 36)),
+        y: Math.max(56, Math.min(vh - 220, 56 + k * 36)),
+      });
+    });
+    onClose();
+  }
+
   const commands: Command[] = [
     ...Object.values(MODULE_REGISTRY)
       .filter((m) => m.type !== "custom")
@@ -79,6 +119,8 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
     { id: "settings", label: t("settings.title"), hint: t("settings.subtitle"), icon: Settings2, accent: "#22d3ee", action: () => { openSettings(); onClose(); }, group: "system" },
     { id: "lang", label: "Toggle language (EN/FR)", hint: "Switch interface language", icon: Globe, accent: "#34d399", action: () => { toggleLanguage(); onClose(); }, group: "system" },
     { id: "close-all", label: t("topbar.closeAll"), hint: "Close every window", icon: XCircle, accent: "#f43f5e", action: () => { closeAll(); onClose(); }, group: "system" },
+    { id: "tile", label: "Tile windows", hint: "Arrange all windows in a grid", icon: LayoutGrid, accent: "#22d3ee", action: tileWindows, group: "system" },
+    { id: "cascade", label: "Cascade windows", hint: "Stack all windows diagonally", icon: Layers, accent: "#a78bfa", action: cascadeWindows, group: "system" },
   ];
 
   const searched = query
@@ -119,7 +161,7 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
           <motion.div
             initial={{ opacity: 0, scale: 0.96, y: -20 }} animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.96, y: -20 }} transition={{ type: "spring", stiffness: 320, damping: 28 }}
-            className="fixed top-[20%] left-1/2 -translate-x-1/2 z-[1101] glass-panel-strong rounded-2xl overflow-hidden w-[600px] max-w-[94vw]"
+            className="fixed top-[10%] sm:top-[16%] left-1/2 -translate-x-1/2 z-[1101] glass-panel-strong rounded-2xl overflow-hidden w-[600px] max-w-[94vw]"
           >
             <div className="flex items-center gap-2 px-4 py-3 border-b border-white/10">
               <Search className="w-4 h-4 text-cyan-400" />
@@ -134,7 +176,7 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
               <kbd className="text-[10px] text-white/40 bg-white/5 border border-white/10 rounded px-1.5 py-0.5">ESC</kbd>
             </div>
 
-            <div className="max-h-[420px] overflow-y-auto thin-scroll p-2">
+            <div className="max-h-[min(420px,58vh)] overflow-y-auto thin-scroll p-2">
               {filtered.length === 0 ? (
                 <div className="text-center text-white/40 text-sm py-8">No results for "{query}"</div>
               ) : (

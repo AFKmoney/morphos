@@ -478,6 +478,15 @@ function AppearanceTab() {
   const setBoot = useSettings((s) => s.setBoot);
   const resetAll = useSettings((s) => s.resetAll);
   const factoryReset = useSettings((s) => s.factoryReset);
+  // Two-step inline confirmation - no blocking native dialogs
+  const [armReset, setArmReset] = useState(false);
+  const [armFactory, setArmFactory] = useState(false);
+  const armTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  function arm(setter: (v: boolean) => void) {
+    setter(true);
+    if (armTimer.current) clearTimeout(armTimer.current);
+    armTimer.current = setTimeout(() => { setArmReset(false); setArmFactory(false); }, 3500);
+  }
 
   return (
     <div className="space-y-5">
@@ -559,23 +568,31 @@ function AppearanceTab() {
         <div className="flex gap-2">
           <button
             onClick={() => {
-              if (confirm(t("settings.reset.confirm"))) resetAll();
+              if (armReset) { resetAll(); setArmReset(false); }
+              else arm(setArmReset);
             }}
-            className="text-xs px-3 py-1.5 rounded-md bg-rose-500/15 border border-rose-400/30 text-rose-300 hover:bg-rose-500/25 flex items-center gap-1.5"
+            className={`text-xs px-3 py-1.5 rounded-md border flex items-center gap-1.5 ${
+              armReset
+                ? "bg-rose-500/40 border-rose-300/60 text-white"
+                : "bg-rose-500/15 border-rose-400/30 text-rose-300 hover:bg-rose-500/25"
+            }`}
           >
             <RotateCcw className="w-3 h-3" />
-            {t("settings.reset")}
+            {armReset ? t("common.confirm") : t("settings.reset")}
           </button>
           <button
             onClick={() => {
-              if (confirm("Factory reset? This will clear all windows, chat history, workspaces, and module states — but KEEP your API keys and provider settings.")) {
-                factoryReset();
-              }
+              if (armFactory) { factoryReset(); setArmFactory(false); }
+              else arm(setArmFactory);
             }}
-            className="text-xs px-3 py-1.5 rounded-md bg-amber-500/15 border border-amber-400/30 text-amber-300 hover:bg-amber-500/25 flex items-center gap-1.5"
+            className={`text-xs px-3 py-1.5 rounded-md border flex items-center gap-1.5 ${
+              armFactory
+                ? "bg-amber-500/40 border-amber-300/60 text-white"
+                : "bg-amber-500/15 border-amber-400/30 text-amber-300 hover:bg-amber-500/25"
+            }`}
           >
             <Shield className="w-3 h-3" />
-            Factory Reset (keep API keys)
+            {armFactory ? t("common.confirm") : "Factory Reset (keep API keys)"}
           </button>
         </div>
         <div className="text-[9px] text-white/30 leading-relaxed">

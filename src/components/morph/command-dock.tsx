@@ -319,7 +319,7 @@ export function CommandDock() {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 20, scale: 0.95 }}
             transition={{ type: "spring", stiffness: 280, damping: 24 }}
-            className="fixed bottom-[84px] left-1/2 -translate-x-1/2 z-50 glass-panel-strong rounded-xl overflow-hidden w-[440px] max-w-[94vw] h-[420px] flex flex-col"
+            className="fixed bottom-[84px] left-1/2 -translate-x-1/2 z-50 glass-panel-strong rounded-xl overflow-hidden w-[440px] max-w-[94vw] h-[min(420px,calc(100vh-180px))] flex flex-col"
           >
             <div className="flex items-center gap-2 px-3 py-2 border-b border-white/10 bg-black/40">
               <Sparkles className="w-3 h-3 text-cyan-400" />

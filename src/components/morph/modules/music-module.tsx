@@ -37,6 +37,10 @@ export function MusicModule() {
   const [volume, setVolume] = useModulePersist<number>("music:volume", 0.7);
   const [loading, setLoading] = useState(false);
   const [liked, setLiked] = useModulePersist<Record<number, boolean>>("music:liked", {});
+  const [audioError, setAudioError] = useState<string | null>(null);
+  const [levels, setLevels] = useState<number[]>([0, 0, 0, 0, 0]);
+  const analyserRef = useRef<{ ctx: AudioContext; analyser: AnalyserNode; data: Uint8Array<ArrayBuffer> } | null>(null);
+  const rafRef = useRef(0);
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const playlist = [...TRACKS, ...custom];
@@ -44,9 +48,12 @@ export function MusicModule() {
 
   useEffect(() => {
     if (!audioRef.current) {
-      audioRef.current = new Audio();
+      const el = new Audio();
+      el.crossOrigin = "anonymous"; // allows the real analyser tap when the host sends CORS
+      audioRef.current = el;
     }
     const audio = audioRef.current;
+    queueMicrotask(() => setAudioError(null));
     audio.src = track.url;
     audio.volume = volume;
 
@@ -60,6 +67,18 @@ export function MusicModule() {
     };
     const onPlay = () => setPlaying(true);
     const onPause = () => setPlaying(false);
+    const onError = () => {
+      const a = audioRef.current;
+      if (a && a.crossOrigin === "anonymous") {
+        // Host without CORS headers: retry plain (keeps sound, analyser tap off)
+        a.crossOrigin = null;
+        a.src = track.url;
+        a.load();
+        return;
+      }
+      setLoading(false);
+      setAudioError(fr ? "Flux illisible — vérifie l'URL." : "Unreadable stream — check the URL.");
+    };
 
     audio.addEventListener("loadedmetadata", onLoaded);
     audio.addEventListener("timeupdate", onTime);
@@ -68,6 +87,7 @@ export function MusicModule() {
     audio.addEventListener("pause", onPause);
     audio.addEventListener("waiting", () => setLoading(true));
     audio.addEventListener("canplay", () => setLoading(false));
+    audio.addEventListener("error", onError);
 
     queueMicrotask(() => {
       setLoading(true);
@@ -80,6 +100,7 @@ export function MusicModule() {
       audio.removeEventListener("ended", onEnded);
       audio.removeEventListener("play", onPlay);
       audio.removeEventListener("pause", onPause);
+      audio.removeEventListener("error", onError);
       audio.pause();
     };
   }, [idx]);
@@ -88,12 +109,60 @@ export function MusicModule() {
     if (audioRef.current) audioRef.current.volume = volume;
   }, [volume]);
 
+  function ensureAnalyser() {
+    const audio = audioRef.current;
+    if (!audio || analyserRef.current || audio.crossOrigin !== "anonymous") return;
+    try {
+      const AC = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+      const ctx = new AC();
+      const src = ctx.createMediaElementSource(audio);
+      const analyser = ctx.createAnalyser();
+      analyser.fftSize = 32;
+      analyser.smoothingTimeConstant = 0.75;
+      src.connect(analyser);
+      analyser.connect(ctx.destination);
+      analyserRef.current = { ctx, analyser, data: new Uint8Array(new ArrayBuffer(analyser.frequencyBinCount)) };
+    } catch {
+      /* tap unavailable: bars stay flat, sound untouched */
+    }
+  }
+
+  useEffect(() => {
+    if (!playing) return;
+    let alive = true;
+    const tick = () => {
+      if (!alive) return;
+      const a = analyserRef.current;
+      if (a) {
+        a.analyser.getByteFrequencyData(a.data);
+        const n = Math.max(1, a.data.length);
+        setLevels([0, 1, 2, 3, 4].map((i) => (a.data[Math.floor((i * n) / 5)] ?? 0) / 255));
+      }
+      rafRef.current = requestAnimationFrame(tick);
+    };
+    rafRef.current = requestAnimationFrame(tick);
+    return () => {
+      alive = false;
+      cancelAnimationFrame(rafRef.current);
+    };
+  }, [playing]);
+
+  useEffect(() => {
+    return () => {
+      cancelAnimationFrame(rafRef.current);
+      analyserRef.current?.ctx.close().catch(() => {});
+    };
+  }, []);
+
   function togglePlay() {
     const audio = audioRef.current;
     if (!audio) return;
     if (playing) {
       audio.pause();
     } else {
+      setAudioError(null);
+      ensureAnalyser();
+      analyserRef.current?.ctx.resume().catch(() => {});
       audio.play().catch(() => {});
     }
   }
@@ -151,8 +220,8 @@ export function MusicModule() {
                 <div key={i} className="w-1 rounded-full"
                   style={{
                     background: track.color,
-                    height: `${8 + Math.abs(Math.sin(Date.now() / 200 + i)) * 16}px`,
-                    animation: `live-pulse ${0.6 + i * 0.1}s ease-in-out infinite`,
+                    height: `${5 + (levels[i] ?? 0) * 19}px`,
+                    boxShadow: `0 0 6px ${track.color}`,
                   }} />
               ))}
             </div>
@@ -161,6 +230,7 @@ export function MusicModule() {
         <div className="relative text-center">
           <div className="text-base font-semibold text-white">{track.title}</div>
           <div className="text-xs text-white/50">{track.artist}</div>
+          {audioError && <div className="text-[10px] text-rose-300 mt-1">{audioError}</div>}
         </div>
       </div>
 
