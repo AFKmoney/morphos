@@ -5,7 +5,7 @@ import { useWindowStore } from "@/lib/window-store";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Send, Sparkles, Zap, ArrowDown, Square, Trash2, Copy, Check, Download } from "lucide-react";
+import { Send, Sparkles, Zap, ArrowDown, Square, Trash2, Copy, Check, Download, RotateCw } from "lucide-react";
 import { cn, fetchJson } from "@/lib/utils";
 import { useT } from "@/lib/use-t";
 import { useSettings, buildProviderPayload } from "@/lib/settings-store";
@@ -258,6 +258,12 @@ export function ChatModule({}: ChatModuleProps) {
     URL.revokeObjectURL(a.href);
   }
 
+  function resend() {
+    if (isInterpreting) return;
+    const lastUser = [...chatMessages].reverse().find((m) => m.role === "user");
+    if (lastUser) send(lastUser.content);
+  }
+
   function onKeyDown(e: React.KeyboardEvent) {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
@@ -274,6 +280,14 @@ export function ChatModule({}: ChatModuleProps) {
         />
         <span className="font-medium text-white/70">{providerCfg.label}</span>
         <span className="font-mono text-white/40 truncate">{activeModel}</span>
+        <button
+          onClick={resend}
+          title={t("chat.resend")}
+          disabled={isInterpreting || !chatMessages.some((m) => m.role === "user")}
+          className="ml-auto p-1 rounded text-white/40 hover:text-white/80 hover:bg-white/5 shrink-0 disabled:opacity-30"
+        >
+          <RotateCw className="w-3 h-3" />
+        </button>
         <button
           onClick={exportMd}
           title="Export .md"

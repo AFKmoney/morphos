@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef } from "react";
 import { TrendingUp, TrendingDown, Loader2, AlertCircle } from "lucide-react";
 import { useT } from "@/lib/use-t";
+import { useModulePersist } from "@/lib/module-state-store";
 
 // Real crypto symbols via CoinGecko (free, no API key)
 const SYMBOLS = [
@@ -29,7 +30,8 @@ export function StockModule() {
   const [error, setError] = useState<string | null>(null);
   const [retryTick, setRetryTick] = useState(0);
   const [fetchedAt, setFetchedAt] = useState<number | null>(null);
-  const historyRef = useRef<Record<string, number[]>>({});
+  const [histStore, setHistStore] = useModulePersist<Record<string, number[]>>("stock:history", {});
+  const historyRef = useRef<Record<string, number[]>>(histStore);
 
   useEffect(() => {
     let active = true;
@@ -54,6 +56,7 @@ export function StockModule() {
 
         if (active) {
           setQuotes(newQuotes);
+          setHistStore({ ...historyRef.current });
           setFetchedAt(Date.now());
           setLoading(false);
           setError(null);

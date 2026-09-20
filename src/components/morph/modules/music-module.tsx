@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-import { Play, Pause, SkipForward, SkipBack, Heart, Volume2, Music4, Loader2, Plus, X } from "lucide-react";
+import { Play, Pause, SkipForward, SkipBack, Heart, Volume2, Music4, Loader2, Plus, X, Repeat, Repeat1, Shuffle } from "lucide-react";
 import { useModulePersist } from "@/lib/module-state-store";
 import { useSettings } from "@/lib/settings-store";
 import { useT } from "@/lib/use-t";
@@ -31,6 +31,13 @@ export function MusicModule() {
   const [custom, setCustom] = useModulePersist<Track[]>("music:custom", []);
   const [showAdd, setShowAdd] = useState(false);
   const [newUrl, setNewUrl] = useState("");
+  const [loop, setLoop] = useModulePersist<"off" | "all" | "one">("music:loop", "all");
+  const [shuffle, setShuffle] = useModulePersist<boolean>("music:shuffle", false);
+  const [rate, setRate] = useModulePersist<number>("music:rate", 1);
+  const loopRef = useRef(loop);
+  const shuffleRef = useRef(shuffle);
+  useEffect(() => { loopRef.current = loop; }, [loop]);
+  useEffect(() => { shuffleRef.current = shuffle; }, [shuffle]);
   const [playing, setPlaying] = useState(false);
   const [pos, setPos] = useState(0);
   const [duration, setDuration] = useState(0);
@@ -63,6 +70,21 @@ export function MusicModule() {
     };
     const onTime = () => setPos(audio.currentTime);
     const onEnded = () => {
+      const a = audioRef.current;
+      if (loopRef.current === "one" && a) {
+        a.currentTime = 0;
+        a.play().catch(() => {});
+        return;
+      }
+      if (loopRef.current === "off") {
+        setIdx((i) => (i + 1 >= playlist.length ? i : i + 1));
+        return;
+      }
+      if (shuffleRef.current && playlist.length > 1) {
+        const r = crypto.getRandomValues(new Uint32Array(1))[0] % playlist.length;
+        setIdx(r);
+        return;
+      }
       setIdx((i) => (i + 1) % playlist.length);
     };
     const onPlay = () => setPlaying(true);
@@ -108,6 +130,24 @@ export function MusicModule() {
   useEffect(() => {
     if (audioRef.current) audioRef.current.volume = volume;
   }, [volume]);
+
+  useEffect(() => {
+    if (audioRef.current) audioRef.current.playbackRate = rate;
+  }, [rate]);
+
+  function next() {
+    if (shuffle && playlist.length > 1) {
+      setIdx(crypto.getRandomValues(new Uint32Array(1))[0] % playlist.length);
+    } else {
+      setIdx((i) => (i + 1) % playlist.length);
+    }
+  }
+
+  const RATES = [1, 1.25, 1.5, 2, 0.5, 0.75];
+  function cycleRate() {
+    const i = RATES.indexOf(rate);
+    setRate(RATES[(i + 1) % RATES.length] ?? 1);
+  }
 
   function ensureAnalyser() {
     const audio = audioRef.current;
@@ -260,8 +300,22 @@ export function MusicModule() {
           style={{ background: track.color }}>
           {playing ? <Pause className="w-4 h-4" fill="currentColor" /> : <Play className="w-4 h-4 ml-0.5" fill="currentColor" />}
         </button>
-        <button onClick={() => setIdx((i) => (i + 1) % playlist.length)} title={t("common.next")} className="text-white/60 hover:text-white">
+        <button onClick={next} title={t("common.next")} className="text-white/60 hover:text-white">
           <SkipForward className="w-4 h-4" />
+        </button>
+        <button
+          onClick={() => setLoop(loop === "off" ? "all" : loop === "all" ? "one" : "off")}
+          title={loop === "off" ? "Loop off" : loop === "all" ? "Loop all" : "Loop one"}
+          className={loop === "off" ? "text-white/30 hover:text-white/70" : "text-cyan-300"}
+        >
+          {loop === "one" ? <Repeat1 className="w-4 h-4" /> : <Repeat className="w-4 h-4" />}
+        </button>
+        <button
+          onClick={() => setShuffle((v) => !v)}
+          title="Shuffle"
+          className={shuffle ? "text-cyan-300" : "text-white/30 hover:text-white/70"}
+        >
+          <Shuffle className="w-4 h-4" />
         </button>
       </div>
 
@@ -294,6 +348,9 @@ export function MusicModule() {
         <input type="range" min={0} max={1} step={0.05} value={volume}
           onChange={(e) => setVolume(Number(e.target.value))} className="flex-1 accent-cyan-400 h-1" />
         <span className="text-[9px] font-mono w-6">{Math.round(volume * 100)}</span>
+        <button onClick={cycleRate} title="Playback speed" className="text-[9px] font-mono text-white/40 hover:text-cyan-300 w-7">
+          {rate}×
+        </button>
       </div>
     </div>
   );

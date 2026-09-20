@@ -6,7 +6,7 @@ import { useModulePersist } from "@/lib/module-state-store";
 import QRCode from "qrcode";
 import { useT } from "@/lib/use-t";
 import { useSettings } from "@/lib/settings-store";
-import { Play, Pause, RotateCcw, Coffee, Brain, Brush, Eraser, Trash2, Download, Undo2, Check, AlertCircle, Copy, ArrowRightLeft, ChevronLeft, ChevronRight, Lock, Globe, ExternalLink, ArrowLeft, ArrowRight, RotateCw } from "lucide-react";
+import { Play, Pause, RotateCcw, Coffee, Brain, Brush, Eraser, Trash2, Download, Undo2, Check, AlertCircle, Copy, ArrowRightLeft, ChevronLeft, ChevronRight, Lock, Globe, ExternalLink, ArrowLeft, ArrowRight, RotateCw, Pipette, Star } from "lucide-react";
 
 // ============ POMODORO ============
 function beep(freq = 880) {
@@ -49,6 +49,14 @@ export function PomodoroModule() {
       setLeft(remain);
       if (remain <= 0) {
         beep(mode === "work" ? 880 : 660);
+        try {
+          if ("Notification" in window && Notification.permission === "granted") {
+            const nextIsWork = mode === "break";
+            new Notification(nextIsWork ? "Pause over — back to focus!" : "Focus session done — break!", {
+              body: nextIsWork ? "Pomodoro: work mode starting." : "Pomodoro: break mode starting.",
+            });
+          }
+        } catch {}
         const nextMode = mode === "work" ? "break" : "work";
         if (mode === "work") setSessions((n) => n + 1);
         setMode(nextMode);
@@ -72,6 +80,11 @@ export function PomodoroModule() {
     if (running) {
       setEndAt(null);
     } else {
+      try {
+        if ("Notification" in window && Notification.permission === "default") {
+          Notification.requestPermission().catch(() => {});
+        }
+      } catch {}
       const total = left > 0 ? left : totalFor(mode);
       setLeft(total);
       setEndAt(Date.now() + total * 1000);
@@ -153,7 +166,7 @@ export function PaintModule() {
   const ctxRef = useRef<CanvasRenderingContext2D | null>(null);
   const [color, setColor] = useState(PAINT_COLORS[0]);
   const [size, setSize] = useState(4);
-  const [tool, setTool] = useState<"brush" | "eraser">("brush");
+  const [tool, setTool] = useState<"brush" | "eraser" | "picker">("brush");
   const [history, setHistory] = useState<ImageData[]>([]);
   const [snapshot, setSnapshot] = useModulePersist<string>("paint:snapshot", "");
   const drawing = useRef(false);
@@ -185,7 +198,20 @@ export function PaintModule() {
   }, [snapshot]);
 
   function getPos(e: { clientX: number; clientY: number }) { const rect = canvasRef.current!.getBoundingClientRect(); return { x: e.clientX - rect.left, y: e.clientY - rect.top }; }
-  function start(e: { clientX: number; clientY: number }) { drawing.current = true; lastPos.current = getPos(e); const ctx = ctxRef.current, canvas = canvasRef.current; if (ctx && canvas) setHistory(h => [...h.slice(-9), ctx.getImageData(0,0,canvas.width,canvas.height)]); }
+  function pick(x: number, y: number) {
+    const ctx = ctxRef.current, canvas = canvasRef.current;
+    if (!ctx || !canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    const dpr = canvas.width / Math.max(1, rect.width);
+    try {
+      const px = ctx.getImageData(Math.min(canvas.width - 1, Math.floor(x * dpr)), Math.min(canvas.height - 1, Math.floor(y * dpr)), 1, 1).data;
+      setColor("#" + [px[0], px[1], px[2]].map((v) => v.toString(16).padStart(2, "0")).join(""));
+      setTool("brush");
+    } catch {}
+  }
+  function start(e: { clientX: number; clientY: number }) {
+    if (tool === "picker") { const p = getPos(e); pick(p.x, p.y); return; }
+    drawing.current = true; lastPos.current = getPos(e); const ctx = ctxRef.current, canvas = canvasRef.current; if (ctx && canvas) setHistory(h => [...h.slice(-9), ctx.getImageData(0,0,canvas.width,canvas.height)]); }
   function draw(e: { clientX: number; clientY: number }) { if (!drawing.current || !ctxRef.current || !lastPos.current) return; const pos = getPos(e); const ctx = ctxRef.current; ctx.strokeStyle = tool === "eraser" ? "#0a0a14" : color; ctx.lineWidth = tool === "eraser" ? size*3 : size; ctx.beginPath(); ctx.moveTo(lastPos.current.x, lastPos.current.y); ctx.lineTo(pos.x, pos.y); ctx.stroke(); lastPos.current = pos; }
   function stop() {
     if (drawing.current) {
@@ -207,7 +233,7 @@ export function PaintModule() {
     <div className="flex flex-col h-full">
       <div className="flex items-center gap-2 px-3 py-2 border-b border-white/8 bg-black/30 flex-wrap">
         <div className="flex gap-1">{PAINT_COLORS.map(c => <button key={c} title={c} onClick={() => { setColor(c); setTool("brush"); }} className={`w-5 h-5 rounded-full border-2 ${color===c&&tool==="brush"?"border-white":"border-white/20"}`} style={{ background: c }} />)}</div>
-        <div className="flex items-center gap-1"><button onClick={() => setTool("brush")} title={t("common.brush")} className={`p-1 rounded ${tool==="brush"?"bg-cyan-500/20 text-cyan-300":"text-white/50 hover:text-white"}`}><Brush className="w-3 h-3" /></button><button onClick={() => setTool("eraser")} title={t("common.eraser")} className={`p-1 rounded ${tool==="eraser"?"bg-cyan-500/20 text-cyan-300":"text-white/50 hover:text-white"}`}><Eraser className="w-3 h-3" /></button></div>
+        <div className="flex items-center gap-1"><button onClick={() => setTool("brush")} title={t("common.brush")} className={`p-1 rounded ${tool==="brush"?"bg-cyan-500/20 text-cyan-300":"text-white/50 hover:text-white"}`}><Brush className="w-3 h-3" /></button><button onClick={() => setTool("eraser")} title={t("common.eraser")} className={`p-1 rounded ${tool==="eraser"?"bg-cyan-500/20 text-cyan-300":"text-white/50 hover:text-white"}`}><Eraser className="w-3 h-3" /></button><button onClick={() => setTool("picker")} title={t("common.picker")} className={`p-1 rounded ${tool==="picker"?"bg-cyan-500/20 text-cyan-300":"text-white/50 hover:text-white"}`}><Pipette className="w-3 h-3" /></button></div>
         <input type="range" min={1} max={20} value={size} onChange={e => setSize(Number(e.target.value))} className="w-16 accent-cyan-400" /><span className="text-[10px] text-white/50 font-mono">{size}px</span>
         <div className="flex gap-1 ml-auto"><button onClick={undo} title={t("common.undo")} className="p-1 rounded text-white/50 hover:text-white hover:bg-white/5"><Undo2 className="w-3 h-3" /></button><button onClick={download} title={t("common.download")} className="p-1 rounded text-white/50 hover:text-white hover:bg-white/5"><Download className="w-3 h-3" /></button><button onClick={clear} title={t("common.clear")} className="p-1 rounded text-white/50 hover:text-rose-400 hover:bg-rose-500/10"><Trash2 className="w-3 h-3" /></button></div>
       </div>
@@ -222,9 +248,12 @@ export function RegexModule() {
   const [pattern, setPattern] = useModulePersist<string>("regex:pattern", "\\b(\\w+)@(\\w+\\.\\w+)\\b");
   const [flags, setFlags] = useModulePersist<string>("regex:flags", "g");
   const [text, setText] = useModulePersist<string>("regex:text", "Contact us at hello@morphos.io or support@z.ai.");
+  const [replacement, setReplacement] = useModulePersist<string>("regex:replace", "$1");
   let matches: MatchInfo[] = []; let error: string | null = null;
   try { const re = new RegExp(pattern, flags); const gr = flags.includes("g") ? re : new RegExp(pattern, flags+"g"); let m; while ((m = gr.exec(text)) !== null) { matches.push({match:m[0],index:m.index,groups:m.slice(1)}); if (m.index===gr.lastIndex) gr.lastIndex++; } } catch(e) { error = e instanceof Error ? e.message : String(e); }
   interface Seg { text: string; isMatch: boolean; key: string; }
+  let replaced = "";
+  if (!error) { try { replaced = text.replace(new RegExp(pattern, flags.includes("g") ? flags : flags + "g"), replacement); } catch {} }
   const segs: Seg[] = [];
   if (!error && matches.length > 0) { let li = 0; for (const mt of matches) { if (mt.index > li) segs.push({text:text.slice(li,mt.index),isMatch:false,key:`t-${li}`}); segs.push({text:mt.match,isMatch:true,key:`m-${mt.index}`}); li = mt.index+mt.match.length; } if (li < text.length) segs.push({text:text.slice(li),isMatch:false,key:"t-end"}); }
   return (
@@ -233,6 +262,7 @@ export function RegexModule() {
       {error ? <div className="text-[11px] text-rose-300 bg-rose-500/10 border border-rose-400/30 rounded px-2 py-1.5 flex items-center gap-1.5"><AlertCircle className="w-3 h-3 shrink-0" /><span className="font-mono truncate">{error}</span></div> : <div className="text-[10px] text-emerald-400 flex items-center gap-1"><Check className="w-2.5 h-2.5" />{matches.length} match{matches.length!==1?"es":""}</div>}
       <div><div className="text-[10px] uppercase tracking-wider text-white/40 mb-1">Test string</div><textarea value={text} onChange={e=>setText(e.target.value)} className="w-full h-24 bg-black/40 border border-white/10 rounded p-2 text-xs font-mono text-white/90 outline-none focus:border-cyan-400/50 resize-none thin-scroll" spellCheck={false} /></div>
       <div><div className="text-[10px] uppercase tracking-wider text-white/40 mb-1">Highlighted</div><div className="bg-black/40 border border-white/10 rounded p-2 text-xs font-mono text-white/70 whitespace-pre-wrap min-h-[60px]">{error ? text : segs.length > 0 ? segs.map(s => s.isMatch ? <mark key={s.key} className="bg-cyan-500/30 text-cyan-100 rounded px-0.5">{s.text}</mark> : <span key={s.key}>{s.text}</span>) : text}</div></div>
+      <div><div className="text-[10px] uppercase tracking-wider text-white/40 mb-1">Replace with</div><div className="flex gap-1"><input value={replacement} onChange={e=>setReplacement(e.target.value)} className="flex-1 bg-black/40 border border-white/10 rounded px-2 py-1 text-xs font-mono text-amber-200 outline-none focus:border-amber-400/50" spellCheck={false} /><button onClick={()=>{navigator.clipboard?.writeText(replaced);}} title="Copy result" className="text-[10px] px-2 py-1 rounded-md bg-white/5 border border-white/10 text-white/60 hover:text-white"><Copy className="w-3 h-3" /></button></div>{!error && replaced !== text && <pre className="mt-1 bg-black/40 border border-white/10 rounded p-2 text-xs font-mono text-emerald-200/90 whitespace-pre-wrap break-all">{replaced}</pre>}</div>
       {matches.length > 0 && <div><div className="text-[10px] uppercase tracking-wider text-white/40 mb-1">Matches</div><div className="space-y-1 max-h-32 overflow-y-auto thin-scroll">{matches.map((m,i) => <div key={i} className="bg-black/30 border border-white/5 rounded px-2 py-1 text-[10px] font-mono"><span className="text-white/40">[{m.index}]</span> <span className="text-cyan-300">{m.match}</span>{m.groups.length>0 && <span className="text-white/40"> → ({m.groups.join(", ")})</span>}</div>)}</div></div>}
     </div>
   );
@@ -246,9 +276,10 @@ export function JsonModule() {
   const [copied, setCopied] = useState(false);
   function format() { try { setOutput(JSON.stringify(JSON.parse(input), null, 2)); setError(null); } catch(e) { setError(e instanceof Error ? e.message : String(e)); setOutput(""); } }
   function minify() { try { setOutput(JSON.stringify(JSON.parse(input))); setError(null); } catch(e) { setError(e instanceof Error ? e.message : String(e)); setOutput(""); } }
+  const jsonValid: boolean | null = (() => { if (!input.trim()) return null; try { JSON.parse(input); return true; } catch { return false; } })();
   return (
     <div className="flex flex-col h-full p-3 gap-2">
-      <div className="flex gap-1"><button onClick={format} className="text-[11px] px-2.5 py-1 rounded-md bg-cyan-500/20 border border-cyan-400/30 text-cyan-300 hover:bg-cyan-500/30">Beautify</button><button onClick={minify} className="text-[11px] px-2.5 py-1 rounded-md bg-white/5 border border-white/10 text-white/70 hover:bg-white/10">Minify</button><button onClick={() => { navigator.clipboard?.writeText(output); setCopied(true); setTimeout(()=>setCopied(false),1200); }} disabled={!output} className="text-[11px] px-2.5 py-1 rounded-md bg-white/5 border border-white/10 text-white/70 hover:bg-white/10 disabled:opacity-30 flex items-center gap-1">{copied ? <Check className="w-2.5 h-2.5 text-emerald-400" /> : <Copy className="w-2.5 h-2.5" />}Copy</button></div>
+      <div className="flex gap-1"><button onClick={format} className="text-[11px] px-2.5 py-1 rounded-md bg-cyan-500/20 border border-cyan-400/30 text-cyan-300 hover:bg-cyan-500/30">Beautify</button><button onClick={minify} className="text-[11px] px-2.5 py-1 rounded-md bg-white/5 border border-white/10 text-white/70 hover:bg-white/10">Minify</button><button onClick={() => { navigator.clipboard?.writeText(output); setCopied(true); setTimeout(()=>setCopied(false),1200); }} disabled={!output} className="text-[11px] px-2.5 py-1 rounded-md bg-white/5 border border-white/10 text-white/70 hover:bg-white/10 disabled:opacity-30 flex items-center gap-1">{copied ? <Check className="w-2.5 h-2.5 text-emerald-400" /> : <Copy className="w-2.5 h-2.5" />}Copy</button>{jsonValid !== null && <span className={`ml-auto text-[10px] font-mono self-center ${jsonValid ? "text-emerald-400" : "text-rose-400"}`}>{jsonValid ? "✓ valid" : "✗ invalid"}</span>}</div>
       {error && <div className="text-[11px] text-rose-300 bg-rose-500/10 border border-rose-400/30 rounded px-2 py-1.5 flex items-center gap-1.5"><AlertCircle className="w-3 h-3 shrink-0" /><span className="font-mono truncate">{error}</span></div>}
       <div className="grid grid-cols-2 gap-2 flex-1 min-h-0"><div className="flex flex-col"><div className="text-[10px] uppercase tracking-wider text-white/40 mb-1">Input</div><textarea value={input} onChange={e=>setInput(e.target.value)} className="flex-1 bg-black/40 border border-white/10 rounded p-2 text-[11px] font-mono text-white/90 outline-none focus:border-cyan-400/50 resize-none thin-scroll" spellCheck={false} /></div><div className="flex flex-col"><div className="text-[10px] uppercase tracking-wider text-white/40 mb-1">Output</div><pre className="flex-1 min-h-0 bg-black/40 border border-white/10 rounded p-2 text-[11px] font-mono text-emerald-200/90 overflow-auto thin-scroll whitespace-pre-wrap break-all">{output || <span className="text-white/40">— click Beautify —</span>}</pre></div></div>
     </div>
@@ -281,20 +312,23 @@ const QR_EC_LEVELS: QrECLevel[] = ["L", "M", "Q", "H"];
 export function QrModule() {
   const [text, setText] = useModulePersist<string>("qr:text", "https://github.com/morphos");
   const [ecLevel, setEcLevel] = useModulePersist<QrECLevel>("qr:ec", "M");
+  const [fg, setFg] = useModulePersist<string>("qr:fg", "#000000");
+  const [bg, setBg] = useModulePersist<string>("qr:bg", "#ffffff");
   const [dataUrl, setDataUrl] = useState("");
   const [qrError, setQrError] = useState<string | null>(null);
   useEffect(() => {
     let live = true;
-    QRCode.toDataURL(text || " ", { width: 360, margin: 2, errorCorrectionLevel: ecLevel, color: { dark: "#000000", light: "#ffffff" } })
+    QRCode.toDataURL(text || " ", { width: 360, margin: 2, errorCorrectionLevel: ecLevel, color: { dark: fg, light: bg } })
       .then((url) => { if (live) { setDataUrl(url); setQrError(null); } })
       .catch((e) => { if (live) { setDataUrl(""); setQrError(e instanceof Error ? e.message : String(e)); } });
     return () => { live = false; };
-  }, [text, ecLevel]);
+  }, [text, ecLevel, fg, bg]);
   function download() { if (!dataUrl) return; const link = document.createElement("a"); link.download = `morphos-qr-${Date.now()}.png`; link.href = dataUrl; link.click(); }
   return (
     <div className="flex flex-col h-full p-3 gap-3 thin-scroll overflow-y-auto">
       <div><div className="text-[10px] uppercase tracking-wider text-white/40 mb-1">Text / URL</div><input value={text} onChange={e=>setText(e.target.value)} className="w-full bg-black/40 border border-white/10 rounded px-2 py-1.5 text-xs text-white outline-none focus:border-cyan-400/50" /></div>
-      <div className="flex items-center justify-center bg-white rounded-lg p-4 mx-auto min-w-[212px] min-h-[212px]">{dataUrl ? <img src={dataUrl} alt="QR code" width={180} height={180} /> : <span className="text-[11px] text-black/50">{qrError ?? "Generating…"}</span>}</div>
+      <div className="flex items-center gap-2"><input type="color" value={fg} onChange={e=>setFg(e.target.value)} title="QR color" className="w-8 h-6 rounded cursor-pointer bg-transparent border border-white/10" style={{padding:0}} /><input type="color" value={bg} onChange={e=>setBg(e.target.value)} title="Background" className="w-8 h-6 rounded cursor-pointer bg-transparent border border-white/10" style={{padding:0}} /><span className="text-[10px] text-white/40">QR colors</span></div>
+      <div className="flex items-center justify-center rounded-lg p-4 mx-auto min-w-[212px] min-h-[212px]" style={{background:bg}}>{dataUrl ? <img src={dataUrl} alt="QR code" width={180} height={180} /> : <span className="text-[11px] text-black/50">{qrError ?? "Generating…"}</span>}</div>
       {qrError && <div className="text-[11px] text-rose-300 bg-rose-500/10 border border-rose-400/30 rounded px-2 py-1.5">{qrError}</div>}
       <div className="flex items-center gap-2"><span className="text-[10px] text-white/40">Correction</span><div className="flex gap-1">{QR_EC_LEVELS.map(l=><button key={l} onClick={()=>setEcLevel(l)} className={`text-[10px] px-2 py-0.5 rounded font-mono ${ecLevel===l?"bg-cyan-500/20 text-cyan-300 border border-cyan-400/30":"text-white/50 bg-white/5 hover:text-white"}`}>{l}</button>)}</div><span className="text-[9px] text-white/40 ml-auto">scannable</span></div>
       <button onClick={download} disabled={!dataUrl} className="text-[11px] px-3 py-1.5 rounded-md bg-cyan-500/20 border border-cyan-400/30 text-cyan-300 hover:bg-cyan-500/30 disabled:opacity-30 flex items-center justify-center gap-1.5"><Download className="w-3 h-3" /> Download PNG</button>
@@ -313,6 +347,11 @@ export function DevtoolsModule() {
   const [mode, setMode] = useModulePersist<"encode"|"decode">("devtools:mode", "encode");
   const [copied, setCopied] = useState(false);
   async function compute() { let r=""; try { switch(tool){case "base64": r=mode==="encode"?btoa(unescape(encodeURIComponent(input))):decodeURIComponent(escape(atob(input)));break;case "url": r=mode==="encode"?encodeURIComponent(input):decodeURIComponent(input);break;case "hash": const enc=new TextEncoder().encode(input);const buf=await crypto.subtle.digest("SHA-256",enc);r=Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,"0")).join("");break;case "uuid": r=crypto.randomUUID();break;case "binary": r=mode==="encode"?input.split("").map(c=>c.charCodeAt(0).toString(2).padStart(8,"0")).join(" "):input.split(/\s+/).map(b=>String.fromCharCode(parseInt(b,2))).join("");break;case "hex": r=mode==="encode"?input.split("").map(c=>c.charCodeAt(0).toString(16).padStart(2,"0")).join(" "):input.split(/\s+/).map(h=>String.fromCharCode(parseInt(h,16))).join("");break;case "rot13": r=input.replace(/[a-zA-Z]/g,c=>{const code=c.charCodeAt(0);const base=code>=65&&code<=90?65:97;return String.fromCharCode(((code-base+13)%26)+base);});break;} setOutput(r);} catch(e){ setOutput(`Error: ${e instanceof Error?e.message:String(e)}`);} }
+  useEffect(() => {
+    if (tool === "uuid") return;
+    const id = setTimeout(() => { compute(); }, 400);
+    return () => clearTimeout(id);
+  }, [input, tool, mode]);
   const canSwap = ["base64","url","binary","hex"].includes(tool);
   return (
     <div className="flex flex-col h-full p-3 gap-2">
@@ -331,6 +370,16 @@ export function BrowserModule() {
   const fr = useSettings((s) => s.language) === "fr";
   const [url, setUrl] = useModulePersist<string>("browser:url", "https://en.wikipedia.org/wiki/MorphOS");
   const [inputUrl, setInputUrl] = useState(url);
+  const [favs, setFavs] = useModulePersist<{name:string;url:string}[]>("browser:favs", []);
+  const isFav = favs.some((f) => f.url === url);
+  function toggleFav() {
+    if (isFav) setFavs(favs.filter((f) => f.url !== url));
+    else {
+      let name = url;
+      try { name = new URL(url).hostname.replace(/^www\./, ""); } catch {}
+      setFavs([...favs, { name, url }].slice(-12));
+    }
+  }
   const [loading, setLoading] = useState(true);
   const [tick, setTick] = useState(0);
   const frameRef = useRef<HTMLIFrameElement>(null);
@@ -340,8 +389,8 @@ export function BrowserModule() {
   function reload(){setLoading(true);setTick((x)=>x+1);}
   return (
     <div className="flex flex-col h-full">
-      <div className="flex items-center gap-1 px-2 py-1.5 border-b border-white/8 bg-black/30"><button onClick={back} title={fr?"Précédent":"Back"} className="p-1 rounded text-white/60 hover:text-white hover:bg-white/5"><ArrowLeft className="w-3 h-3" /></button><button onClick={fwd} title={fr?"Suivant":"Forward"} className="p-1 rounded text-white/60 hover:text-white hover:bg-white/5"><ArrowRight className="w-3 h-3" /></button><button onClick={reload} title={fr?"Recharger":"Reload"} className="p-1 rounded text-white/60 hover:text-white hover:bg-white/5"><RotateCw className={`w-3 h-3 ${loading?"animate-spin text-cyan-300":""}`} /></button><div className="flex-1 flex items-center gap-1.5 bg-black/40 border border-white/10 rounded-md px-2 py-1"><Lock className="w-2.5 h-2.5 text-emerald-400" /><input value={inputUrl} onChange={e=>setInputUrl(e.target.value)} onKeyDown={e=>{if(e.key==="Enter")navigate(inputUrl);}} className="flex-1 min-w-0 bg-transparent text-[11px] text-white/80 outline-none font-mono" placeholder="Search or enter URL" /></div><a href={url} target="_blank" rel="noopener noreferrer" title={fr?"Ouvrir dans un nouvel onglet":"Open in new tab"} className="p-1 rounded text-white/60 hover:text-white"><ExternalLink className="w-3 h-3" /></a></div>
-      <div className="flex gap-1 px-2 py-1 border-b border-white/8 bg-black/20 overflow-x-auto thin-scroll items-center">{SUGGESTED.map(s=><button key={s.url} onClick={()=>navigate(s.url)} className="text-[10px] px-2 py-0.5 rounded bg-white/5 text-white/60 hover:text-white hover:bg-white/10 whitespace-nowrap flex items-center gap-1 shrink-0"><Globe className="w-2.5 h-2.5" />{s.name}</button>)}<span className="text-[9px] text-white/30 whitespace-nowrap ml-auto pl-2">{fr?"Page blanche ? le site bloque l'iframe → ↗":"Blank page? the site blocks iframes → ↗"}</span></div>
+      <div className="flex items-center gap-1 px-2 py-1.5 border-b border-white/8 bg-black/30"><button onClick={back} title={fr?"Précédent":"Back"} className="p-1 rounded text-white/60 hover:text-white hover:bg-white/5"><ArrowLeft className="w-3 h-3" /></button><button onClick={fwd} title={fr?"Suivant":"Forward"} className="p-1 rounded text-white/60 hover:text-white hover:bg-white/5"><ArrowRight className="w-3 h-3" /></button><button onClick={reload} title={fr?"Recharger":"Reload"} className="p-1 rounded text-white/60 hover:text-white hover:bg-white/5"><RotateCw className={`w-3 h-3 ${loading?"animate-spin text-cyan-300":""}`} /></button><div className="flex-1 flex items-center gap-1.5 bg-black/40 border border-white/10 rounded-md px-2 py-1"><Lock className="w-2.5 h-2.5 text-emerald-400" /><input value={inputUrl} onChange={e=>setInputUrl(e.target.value)} onKeyDown={e=>{if(e.key==="Enter")navigate(inputUrl);}} className="flex-1 min-w-0 bg-transparent text-[11px] text-white/80 outline-none font-mono" placeholder="Search or enter URL" /></div><button onClick={toggleFav} title={isFav ? (fr?"Retirer des favoris":"Remove bookmark") : (fr?"Ajouter aux favoris":"Bookmark this page")} className={`p-1 rounded hover:bg-white/5 ${isFav ? "text-amber-300" : "text-white/60 hover:text-white"}`}><Star className="w-3 h-3" fill={isFav ? "currentColor" : "none"} /></button><a href={url} target="_blank" rel="noopener noreferrer" title={fr?"Ouvrir dans un nouvel onglet":"Open in new tab"} className="p-1 rounded text-white/60 hover:text-white"><ExternalLink className="w-3 h-3" /></a></div>
+      <div className="flex gap-1 px-2 py-1 border-b border-white/8 bg-black/20 overflow-x-auto thin-scroll items-center">{favs.map(f=><button key={f.url} onClick={()=>navigate(f.url)} title={f.url} className="text-[10px] px-2 py-0.5 rounded bg-amber-500/10 border border-amber-400/20 text-amber-200/80 hover:text-amber-100 whitespace-nowrap flex items-center gap-1 shrink-0"><Star className="w-2.5 h-2.5" fill="currentColor" />{f.name}</button>)}{SUGGESTED.map(s=><button key={s.url} onClick={()=>navigate(s.url)} className="text-[10px] px-2 py-0.5 rounded bg-white/5 text-white/60 hover:text-white hover:bg-white/10 whitespace-nowrap flex items-center gap-1 shrink-0"><Globe className="w-2.5 h-2.5" />{s.name}</button>)}<span className="text-[9px] text-white/30 whitespace-nowrap ml-auto pl-2">{fr?"Page blanche ? le site bloque l'iframe → ↗":"Blank page? the site blocks iframes → ↗"}</span></div>
       <div className="flex-1 min-h-0 relative bg-white"><iframe ref={frameRef} key={`${url}#${tick}`} src={url} onLoad={()=>setLoading(false)} className="w-full h-full border-0" sandbox="allow-scripts allow-same-origin allow-forms" referrerPolicy="no-referrer" title="Browser" />{loading && <div className="absolute top-2 left-1/2 -translate-x-1/2 text-[10px] font-mono px-2 py-0.5 rounded bg-black/70 text-cyan-300">{fr?"Chargement…":"Loading…"}</div>}</div>
     </div>
   );
@@ -383,17 +432,21 @@ export function CalendarModule() {
     setAdding(false);
   }
   const year = view.getFullYear(), month = view.getMonth();
+  const weekStart = fr ? 1 : 0;
+  const wdays = (() => { const n = weekdayNames(locale); return [...n.slice(weekStart), ...n.slice(0, weekStart)]; })();
+  function goToday() { const n = new Date(); setView(new Date(n.getFullYear(), n.getMonth(), 1)); setSelected(fmtDay(n)); }
   const firstDay = new Date(year, month, 1).getDay();
+  const lead = (firstDay - weekStart + 7) % 7;
   const daysInMonth = new Date(year, month+1, 0).getDate();
   const eventsByDate = events.reduce((acc,e)=>{if(!acc[e.date])acc[e.date]=[];acc[e.date].push(e);return acc;},{} as Record<string,Ev[]>);
   const cells: React.ReactNode[] = [];
-  for(let i=0;i<firstDay;i++) cells.push(<div key={`e-${i}`} className="h-9" />);
+  for(let i=0;i<lead;i++) cells.push(<div key={`e-${i}`} className="h-9" />);
   for(let d=1;d<=daysInMonth;d++){const ds=fmtDay(new Date(year,month,d));const isT=ds===fmtDay(today);const isS=ds===selected;const de=eventsByDate[ds]??[];cells.push(<button key={d} onClick={()=>setSelected(ds)} className={`h-9 rounded-md flex flex-col items-center justify-center text-[11px] relative transition ${isS?"bg-cyan-500/30 text-cyan-100 border border-cyan-400/50":isT?"bg-white/10 text-white":"text-white/70 hover:bg-white/5"}`}>{d}{de.length>0&&<div className="absolute bottom-0.5 flex gap-0.5">{de.slice(0,3).map((e,i)=><div key={i} className="w-1 h-1 rounded-full" style={{background:e.color}} />)}</div>}</button>);}
   const se = eventsByDate[selected] ?? [];
   return (
     <div className="flex flex-col h-full p-3 gap-2 thin-scroll overflow-y-auto">
-      <div className="flex items-center gap-2"><button onClick={()=>setView(new Date(year,month-1,1))} title={t("common.previous")} className="p-1 rounded text-white/60 hover:text-white hover:bg-white/5"><ChevronLeft className="w-3.5 h-3.5" /></button><div className="flex-1 text-center text-sm font-medium text-white capitalize">{monthName(locale, year, month)} {year}</div><button onClick={()=>setView(new Date(year,month+1,1))} title={t("common.next")} className="p-1 rounded text-white/60 hover:text-white hover:bg-white/5"><ChevronRight className="w-3.5 h-3.5" /></button></div>
-      <div className="grid grid-cols-7 gap-1 text-center">{weekdayNames(locale).map(d=><div key={d} className="text-[10px] uppercase text-white/40 py-1">{d}</div>)}{cells}</div>
+      <div className="flex items-center gap-2"><button onClick={()=>setView(new Date(year,month-1,1))} title={t("common.previous")} className="p-1 rounded text-white/60 hover:text-white hover:bg-white/5"><ChevronLeft className="w-3.5 h-3.5" /></button><button onClick={goToday} title={fr?"Aujourd'hui":"Today"} className="flex-1 text-center text-sm font-medium text-white capitalize hover:text-cyan-200 transition">{monthName(locale, year, month)} {year}</button><button onClick={()=>setView(new Date(year,month+1,1))} title={t("common.next")} className="p-1 rounded text-white/60 hover:text-white hover:bg-white/5"><ChevronRight className="w-3.5 h-3.5" /></button></div>
+      <div className="grid grid-cols-7 gap-1 text-center">{wdays.map(d=><div key={d} className="text-[10px] uppercase text-white/40 py-1">{d}</div>)}{cells}</div>
       <div className="border-t border-white/8 pt-2 mt-2"><div className="flex items-center justify-between mb-2"><div className="text-[11px] text-white/70">{parseDay(selected).toLocaleDateString(locale,{weekday:"long",month:"long",day:"numeric"})}</div>{adding ? (<span className="flex items-center gap-1"><input value={draft} onChange={e=>setDraft(e.target.value)} onKeyDown={e=>{if(e.key==="Enter")addEvent();if(e.key==="Escape")setAdding(false);}} placeholder={fr?"Titre…":"Title…"} autoFocus className="w-28 bg-black/40 border border-white/10 rounded px-1.5 py-0.5 text-[10px] text-white/90 outline-none focus:border-cyan-400/40" /><button onClick={addEvent} className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/30">OK</button></span>) : (<button onClick={()=>{setDraft("");setAdding(true);}} className="text-[10px] px-2 py-0.5 rounded bg-cyan-500/20 border border-cyan-400/30 text-cyan-300 hover:bg-cyan-500/30">+ Event</button>)}</div><div className="space-y-1">{se.length===0?<div className="text-[11px] text-white/40 text-center py-3">No events</div>:se.map((e,i)=><div key={i} className="flex items-center gap-2 bg-black/30 border border-white/5 rounded px-2 py-1.5"><div className="w-1.5 h-1.5 rounded-full" style={{background:e.color}} /><span className="text-[11px] text-white/80">{e.title}</span><button onClick={()=>setEvents(events.filter((_,j)=>j!==events.indexOf(e)))} className="ml-auto text-white/30 hover:text-rose-400 text-[10px]">✕</button></div>)}</div></div>
     </div>
   );
@@ -410,9 +463,11 @@ export function WhiteboardModule() {
   const [color, setColor] = useState(WB_COLORS[0]);
   const [width, setWidth] = useState(2);
   const drawing = useRef(false);
-  function getPos(e:React.MouseEvent){const svg=svgRef.current!;const rect=svg.getBoundingClientRect();return{x:e.clientX-rect.left,y:e.clientY-rect.top};}
-  function start(e:React.MouseEvent){e.preventDefault();drawing.current=true;setCurrent({points:[getPos(e)],color,width});}
-  function move(e:React.MouseEvent){if(!drawing.current||!current)return;e.preventDefault();setCurrent({...current,points:[...current.points,getPos(e)].slice(-500)});}
+  function getPos(e:{clientX:number;clientY:number}){const svg=svgRef.current!;const rect=svg.getBoundingClientRect();return{x:e.clientX-rect.left,y:e.clientY-rect.top};}
+  function startAt(x:number,y:number){drawing.current=true;setCurrent({points:[{x,y}],color,width});}
+  function moveAt(x:number,y:number){if(!drawing.current||!current)return;setCurrent({...current,points:[...current.points,{x,y}].slice(-500)});}
+  function start(e:React.MouseEvent){e.preventDefault();const p=getPos(e);startAt(p.x,p.y);}
+  function move(e:React.MouseEvent){if(!drawing.current||!current)return;e.preventDefault();const p=getPos(e);moveAt(p.x,p.y);}
   function stop(){if(current && current.points.length>1)setStrokes([...strokes,current].slice(-200));setCurrent(null);drawing.current=false;}
   function pathFrom(s:Stroke){return s.points.length?s.points.reduce((a,p,i)=>a+(i===0?`M ${p.x} ${p.y}`:` L ${p.x} ${p.y}`),""):"";}
   return (
@@ -422,7 +477,7 @@ export function WhiteboardModule() {
         <input type="range" min={1} max={10} value={width} onChange={e=>setWidth(Number(e.target.value))} className="w-14 accent-cyan-400" /><span className="text-[10px] text-white/50 font-mono">{width}px</span>
         <div className="flex gap-1 ml-auto"><button title={t("common.undo")} onClick={()=>setStrokes(strokes.slice(0,-1))} disabled={strokes.length===0} className="p-1 rounded text-white/50 hover:text-white hover:bg-white/5 disabled:opacity-30"><Undo2 className="w-3 h-3" /></button><button title={t("common.download")} onClick={()=>{const svg=svgRef.current;if(svg){const s=new XMLSerializer().serializeToString(svg);const b=new Blob([s],{type:"image/svg+xml"});const u=URL.createObjectURL(b);const l=document.createElement("a");l.download=`wb-${Date.now()}.svg`;l.href=u;l.click();URL.revokeObjectURL(u);}}} className="p-1 rounded text-white/50 hover:text-white hover:bg-white/5"><Download className="w-3 h-3" /></button><button title={t("common.clear")} onClick={()=>setStrokes([])} className="p-1 rounded text-white/50 hover:text-rose-400 hover:bg-rose-500/10"><Trash2 className="w-3 h-3" /></button></div>
       </div>
-      <div className="flex-1 relative bg-black/20"><svg ref={svgRef} onMouseDown={start} onMouseMove={move} onMouseUp={stop} onMouseLeave={stop} className="absolute inset-0 w-full h-full cursor-crosshair touch-none"><defs><pattern id="wbg" width="20" height="20" patternUnits="userSpaceOnUse"><path d="M 20 0 L 0 0 0 20" fill="none" stroke="rgba(255,255,255,0.04)" strokeWidth="0.5" /></pattern></defs><rect width="100%" height="100%" fill="url(#wbg)" />{strokes.map((s,i)=><path key={i} d={pathFrom(s)} fill="none" stroke={s.color} strokeWidth={s.width} strokeLinecap="round" strokeLinejoin="round" />)}{current&&<path d={pathFrom(current)} fill="none" stroke={current.color} strokeWidth={current.width} strokeLinecap="round" strokeLinejoin="round" />}</svg></div>
+      <div className="flex-1 relative bg-black/20"><svg ref={svgRef} onMouseDown={start} onMouseMove={move} onMouseUp={stop} onMouseLeave={stop} onTouchStart={(e)=>{const o=e.touches[0];if(o){const r=svgRef.current!.getBoundingClientRect();startAt(o.clientX-r.left,o.clientY-r.top);}}} onTouchMove={(e)=>{const o=e.touches[0];if(o){const r=svgRef.current!.getBoundingClientRect();moveAt(o.clientX-r.left,o.clientY-r.top);}}} onTouchEnd={stop} className="absolute inset-0 w-full h-full cursor-crosshair touch-none"><defs><pattern id="wbg" width="20" height="20" patternUnits="userSpaceOnUse"><path d="M 20 0 L 0 0 0 20" fill="none" stroke="rgba(255,255,255,0.04)" strokeWidth="0.5" /></pattern></defs><rect width="100%" height="100%" fill="url(#wbg)" />{strokes.map((s,i)=><path key={i} d={pathFrom(s)} fill="none" stroke={s.color} strokeWidth={s.width} strokeLinecap="round" strokeLinejoin="round" />)}{current&&<path d={pathFrom(current)} fill="none" stroke={current.color} strokeWidth={current.width} strokeLinecap="round" strokeLinejoin="round" />}</svg></div>
     </div>
   );
 }

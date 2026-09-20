@@ -196,7 +196,8 @@ export function WeatherModule() {
             </div>
           </div>
 
-          <div className="grid grid-cols-6 gap-1 text-center">
+          <div className="overflow-x-auto thin-scroll">
+          <div className="grid grid-cols-6 gap-1 text-center min-w-[300px]">
             {data.hourly.map((h, i) => {
               const dt = new Date(h.time);
               return (
@@ -206,6 +207,7 @@ export function WeatherModule() {
                 </div>
               );
             })}
+          </div>
           </div>
         </>
       )}

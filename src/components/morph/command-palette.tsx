@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Search, CornerDownLeft, ArrowUp, ArrowDown, LayoutGrid, Layers } from "lucide-react";
+import { Search, CornerDownLeft, ArrowUp, ArrowDown, LayoutGrid, Layers, Minimize2 } from "lucide-react";
 import { useWindowStore, type ModuleType } from "@/lib/window-store";
 import { MODULE_REGISTRY, getModuleMeta, getDefaultModuleSize } from "./module-registry";
 import { useSettings } from "@/lib/settings-store";
@@ -32,6 +32,7 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
   const closeAll = useWindowStore((s) => s.closeAll);
   const updateGeometry = useWindowStore((s) => s.updateGeometry);
   const toggleMaximize = useWindowStore((s) => s.toggleMaximize);
+  const minimizeWindow = useWindowStore((s) => s.minimizeWindow);
   const openSettings = useSettings((s) => s.openSettings);
   const toggleLanguage = useSettings((s) => s.toggleLanguage);
   const fr = useSettings((s) => s.language) === "fr";
@@ -121,6 +122,7 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
     { id: "close-all", label: t("topbar.closeAll"), hint: "Close every window", icon: XCircle, accent: "#f43f5e", action: () => { closeAll(); onClose(); }, group: "system" },
     { id: "tile", label: "Tile windows", hint: "Arrange all windows in a grid", icon: LayoutGrid, accent: "#22d3ee", action: tileWindows, group: "system" },
     { id: "cascade", label: "Cascade windows", hint: "Stack all windows diagonally", icon: Layers, accent: "#a78bfa", action: cascadeWindows, group: "system" },
+    { id: "min-all", label: "Minimize all", hint: "Minimize every window", icon: Minimize2, accent: "#94a3b8", action: () => { windows.forEach((w) => { if (!w.minimized) minimizeWindow(w.id); }); onClose(); }, group: "system" },
   ];
 
   const searched = query

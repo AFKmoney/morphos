@@ -28,6 +28,9 @@ export function TerminalModule() {
   const windows = useWindowStore((s) => s.windows);
   const chatMessages = useWindowStore((s) => s.chatMessages);
   const spawnWindow = useWindowStore((s) => s.spawnWindow);
+  const workspaces = useWindowStore((s) => s.workspaces);
+  const saveWorkspace = useWindowStore((s) => s.saveWorkspace);
+  const loadWorkspace = useWindowStore((s) => s.loadWorkspace);
   const addRecentModule = useAIContext((s) => s.addRecentModule);
   const [lines, setLines] = useModulePersist<Line[]>("terminal:lines", [
     { kind: "sys", text: t("terminal.welcome") },
@@ -35,6 +38,7 @@ export function TerminalModule() {
   ]);
   const [input, setInput] = useState("");
   const [history, setHistory] = useModulePersist<string[]>("terminal:history", []);
+  const [search, setSearch] = useState<string | null>(null);
   const [hIdx, setHIdx] = useState(-1);
   const scrollRef = useRef<HTMLDivElement>(null);
   const stickRef = useRef(true);
@@ -67,6 +71,8 @@ export function TerminalModule() {
   date              date and time
   echo <text>       echo text
   morph --status    live morph-engine status
+  ws save|list|load workspaces (real save/load)
+  history           command history (!n replays, !! repeats)
   clear             clear screen`;
 
   const HELP_FR = `Commandes disponibles (Tab = autocomplétion) :
@@ -78,6 +84,8 @@ export function TerminalModule() {
   date              date et heure
   echo <texte>      affiche le texte
   morph --status    état réel du moteur MorphOS
+  ws save|list|load workspaces (sauvegarde/chargement réels)
+  history           historique (!n rejoue, !! répète)
   clear             efface l'écran`;
 
   function doSpawn(raw: string, fr: boolean) {
@@ -169,8 +177,56 @@ export function TerminalModule() {
         if (args[0]) doSpawn(args[0], fr);
         else push({ kind: "out", text: "usage: spawn <module>" });
         break;
-      default:
-        push({ kind: "out", text: t("terminal.notfound", { cmd: name }) });
+      case "history": {
+        const items = history.slice(-20);
+        push({
+          kind: "out",
+          text: items.length === 0
+            ? (fr ? "(historique vide)" : "(empty history)")
+            : items.map((h, i) => `  ${history.length - items.length + i + 1}  ${h}`).join("\n"),
+        });
+        break;
+      }
+      case "ws": {
+        const sub = (args[0] || "").toLowerCase();
+        if (sub === "list" || sub === "") {
+          push({
+            kind: "out",
+            text: workspaces.length === 0
+              ? (fr ? "(aucun workspace — ws save <nom>)" : "(no workspaces — ws save <name>)")
+              : workspaces.map((w, i) => `  ${i + 1}  ${w.name}  (${w.windows.length} windows)`).join("\n"),
+          });
+        } else if (sub === "save") {
+          const name = args.slice(1).join(" ").trim();
+          if (!name) push({ kind: "out", text: "usage: ws save <name>" });
+          else {
+            saveWorkspace(name);
+            push({ kind: "sys", text: `✓ workspace "${name}" saved (${windows.length} windows)` });
+          }
+        } else if (sub === "load") {
+          const target = args.slice(1).join(" ").trim().toLowerCase();
+          const byIdx = /^\d+$/.test(target) ? workspaces[parseInt(target, 10) - 1] : undefined;
+          const ws = byIdx ?? workspaces.find((w) => w.name.toLowerCase() === target);
+          if (!ws) push({ kind: "out", text: fr ? `workspace introuvable : ${target || "?"}` : `workspace not found: ${target || "?"}` });
+          else {
+            loadWorkspace(ws.id);
+            push({ kind: "sys", text: `✓ workspace "${ws.name}" loaded` });
+          }
+        } else {
+          push({ kind: "out", text: "usage: ws save <name> | ws list | ws load <n|name>" });
+        }
+        break;
+      }
+      default: {
+        const bangN = name.match(/^!(\d+)$/);
+        if (name === "!!" || bangN) {
+          const target = name === "!!" ? history[history.length - 1] : history[parseInt(bangN![1], 10) - 1];
+          if (target) exec(target);
+          else push({ kind: "out", text: fr ? "rien à rejouer" : "nothing to replay" });
+        } else {
+          push({ kind: "out", text: t("terminal.notfound", { cmd: name }) });
+        }
+      }
     }
   }
 
@@ -187,7 +243,33 @@ export function TerminalModule() {
     }
   }
 
+  const searchMatch = search !== null && search !== ""
+    ? [...history].reverse().find((h) => h.toLowerCase().includes(search.toLowerCase())) ?? null
+    : null;
+
   function onKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "r") {
+      e.preventDefault();
+      setSearch((prev) => (prev === null ? "" : null));
+      return;
+    }
+    if (search !== null) {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        setSearch(null);
+        setInput("");
+        return;
+      }
+      if (e.key === "Enter") {
+        e.preventDefault();
+        const cmd = searchMatch ?? search;
+        setSearch(null);
+        setInput("");
+        if (cmd) exec(cmd);
+        return;
+      }
+      return; // typing edits the query (handled by onChange)
+    }
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "l") {
       e.preventDefault();
       setLines([]);
@@ -243,13 +325,21 @@ export function TerminalModule() {
           {l.text}
         </div>
       ))}
+      {search !== null && (
+        <div className="text-amber-300/90">
+          <span className="text-white/40">(reverse-i-search): </span>
+          {search}
+          {searchMatch && <span className="text-white/60"> → {searchMatch}</span>}
+          {!searchMatch && search !== "" && <span className="text-rose-400/80"> (no match)</span>}
+        </div>
+      )}
       <div className="flex items-center text-cyan-300">
         <span className="text-emerald-400">▸</span>
-        <span className="text-white/40 mx-1">{t("terminal.prompt")}</span>
+        <span className="text-white/40 mx-1">{search !== null ? "search" : t("terminal.prompt")}</span>
         <input
           ref={inputRef}
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
+          value={search ?? input}
+          onChange={(e) => (search !== null ? setSearch(e.target.value) : setInput(e.target.value))}
           onKeyDown={onKeyDown}
           autoFocus
           className="flex-1 bg-transparent outline-none text-cyan-200 caret-cyan-400"
