@@ -37,6 +37,11 @@ const morph = createMorph({
 export function NotesModule() {
   const [md, setMd] = useModulePersist<string>("notes:content", DEFAULT_MD);
   const [mode, setMode] = useState<"edit" | "preview">("preview");
+  const [savedAt, setSavedAt] = useState<number | null>(null);
+  function onEdit(v: string) {
+    setMd(v);
+    setSavedAt(Date.now());
+  }
 
   const rendered = useMemo(() => md, [md]);
 
@@ -44,7 +49,17 @@ export function NotesModule() {
     <div className="flex flex-col h-full">
       <div className="flex items-center gap-1 px-3 py-1.5 border-b border-white/8">
         <FileText className="w-3 h-3 text-cyan-400" />
-        <span className="text-[10px] text-white/40 flex-1">notes.md</span>
+        <span className="text-[10px] text-white/40 flex-1">
+          notes.md
+          <span className="text-white/30 ml-1.5 font-mono">
+            {md.trim() ? md.trim().split(/\s+/).length : 0} mots
+          </span>
+          {savedAt && (
+            <span className="text-emerald-400/70 ml-1.5">
+              ✓ {new Date(savedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
+            </span>
+          )}
+        </span>
         <button
           onClick={() => setMode("edit")}
           className={`text-[10px] px-2 py-0.5 rounded flex items-center gap-1 ${
@@ -65,12 +80,12 @@ export function NotesModule() {
       {mode === "edit" ? (
         <textarea
           value={md}
-          onChange={(e) => setMd(e.target.value)}
-          className="flex-1 bg-transparent p-3 text-xs font-mono text-white/90 outline-none resize-none thin-scroll"
+          onChange={(e) => onEdit(e.target.value)}
+          className="flex-1 min-h-0 bg-transparent p-3 text-xs font-mono text-white/90 outline-none resize-none thin-scroll"
           spellCheck={false}
         />
       ) : (
-        <div className="flex-1 overflow-y-auto p-4 thin-scroll prose prose-invert prose-sm max-w-none
+        <div className="flex-1 min-h-0 overflow-y-auto p-4 thin-scroll prose prose-invert prose-sm max-w-none
           prose-headings:text-white prose-p:text-white/80 prose-li:text-white/80
           prose-strong:text-cyan-200 prose-code:text-pink-300 prose-code:bg-white/5 prose-code:px-1 prose-code:rounded
           prose-blockquote:border-cyan-400/50 prose-blockquote:text-white/60

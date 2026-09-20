@@ -1,0 +1,77 @@
+# TODO75 — MorphOS flawless pass (mode autonome)
+
+- [x] 01 `min-h-0` sur tous les conteneurs `flex-1 overflow-*` (dock, kanban, notes, plugin, stock, settings, files)
+- [x] 02 Chat `ScrollArea` : `flex-1 min-h-0`
+- [x] 03 Chat : auto-scroll seulement si déjà en bas
+- [x] 04 Chat : bouton « ↓ derniers messages » quand scrollé en haut
+- [x] 05 Spawn-overlay : auto-scroll vers le bas pendant la génération
+- [x] 06 Terminal : vérifier chaîne `h-full` + scroll
+- [x] 07 Palette : navigation clavier + `scrollIntoView` item actif
+- [x] 08 Code-module : vérifier sync scroll highlight/textarea
+- [x] 09 Notes preview : vérifier + `min-h-0`
+- [x] 10 Files : vérifier colonnes scroll (`min-h-0`, pre wrap)
+- [x] 11 Kanban : `min-w-0` colonnes + `min-h-0` listes
+- [x] 12 Dashboard : root scroll + enfants `shrink-0`/`min-h-0`
+- [x] 13 Settings : vérifier contenu tabs + scroll
+- [x] 14 `llmFetch` : timeout 30 s + message « timed out »
+- [x] 15 `openaiModels` : timeout 15 s
+- [x] 16 Test : ignorer réponses obsolètes (request id)
+- [x] 17 Test : afficher `modelUsed`
+- [x] 18 Clé avec espaces : avertissement « sera trimmée »
+- [x] 19 Interpret : cap prompt 4000 chars
+- [x] 20 Interpret : vérifier note fallback quand LLM fail
+- [x] 21 Generate-module : vérifier code non-vide + erreur claire
+- [x] 22 Test-provider : migrer anthropic/cohere sur `llmFetch`
+- [x] 23 Chat : bouton Stop pendant interpreting
+- [x] 24 `fetchJson` : supporter `signal` (AbortController)
+- [x] 25 Chat : bouton effacer historique
+- [x] 26 Chat : copier message (bouton par bulle)
+- [x] 27 Chat : header provider/modèle actuel
+- [x] 28 Chat : empty state + suggestions cliquables
+- [x] 29 Chat : auto-focus input au montage
+- [x] 30 Chat : hint Shift+Enter (i18n)
+- [x] 31 Notes : autosave localStorage (debounce) + indicateur
+- [x] 32 Kanban : persist board localStorage
+- [x] 33 Calendar : persist events localStorage
+- [x] 34 Terminal : Ctrl+L + cap 500 lignes
+- [x] 35 Calculator : support clavier physique
+- [x] 36 Clock : locale depuis `settings.language`
+- [x] 37 Pomodoro : beep WebAudio fin de session
+- [x] 38 Imagegen : états loading/erreur clairs
+- [x] 39 Weather : état erreur + retry
+- [x] 40 Stock : état erreur + retry
+- [x] 41 Code-module : Tab insère 2 espaces
+- [x] 42 Music : persister volume + piste
+- [x] 43 Camera : vérifier stop tracks on unmount
+- [x] 44 Dashboard : vérifier loading/empty states
+- [x] 45 Custom-module : vérifier erreurs compil scrollables
+- [x] 46 Plugin-module : vérifier scroll + empty state
+- [x] 47 Chat : cap rendu 100 derniers + compteur
+- [x] 48 Store : cap `chatMessages` persistés (200)
+- [x] 49 Intervals : pause quand onglet caché (monitor/metrics/stock/weather)
+- [x] 50 Imagegen : `loading="lazy"` + `decoding="async"`
+- [x] 51 Audit global `setInterval`/`setTimeout` cleanup
+- [x] 52 Esc ferme settings-panel
+- [x] 53 Esc ferme workspace-manager + dialog top-bar
+- [x] 54 `LangSync` : `document.lang` dynamique
+- [x] 55 Audit clés `t()` manquantes EN
+- [x] 56 Audit clés `t()` manquantes FR + fix
+- [x] 57 `aria-label`/`title` boutons icônes (top 10)
+- [x] 58 `prefers-reduced-motion` : couper boot/spawn animations
+- [x] 59 Contrastes `text-white/30` → `/40` ciblés
+- [x] 60 Interpret/generate : migrer anthropic/cohere sur `llmFetch`
+- [x] 61 Constantes `LLM_*_TIMEOUT_MS`
+- [x] 62 `fetchJson<T>` générique (non-breaking)
+- [x] 63 README : NVIDIA + run local + troubleshooting
+- [x] 64 `.env.example` (depuis `process.env` utilisés)
+- [x] 65 Script `npm run test:api`
+- [x] 66 Banner offline (`navigator.onLine`) top-bar
+- [x] 67 API guards : prompt/modèle/base validés
+- [x] 68 Cooldown bouton Test 1.5 s
+- [x] 69 Chat : bloquer envoi vide
+- [x] 70 Generate-image : vérifier erreurs affichées
+- [x] 71 Boot : bouton skip si absent
+- [x] 72 `scripts/test-api.mjs` (mock + assertions + exit code)
+- [x] 73 `scripts/audit-ui.mjs` (checks statiques)
+- [x] 74 Validation complète : tsc + eslint + build + batterie + restart
+- [x] 75 TODO75 coché + commit + push + rapport

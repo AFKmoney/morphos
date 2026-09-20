@@ -209,7 +209,7 @@ export function MorphWindowView({ win }: WindowProps) {
       </div>
 
       <div className="flex-1 min-h-0 relative">
-        <ModuleErrorBoundary fallbackTitle={`${win.title} crashed`}>
+        <ModuleErrorBoundary fallbackTitle={`${win.title} crashed`} onClose={() => closeWindow(win.id)}>
           <Component windowId={win.id} code={win.code} />
         </ModuleErrorBoundary>
       </div>

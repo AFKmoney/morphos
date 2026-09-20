@@ -1,10 +1,12 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { ChevronRight, ChevronDown, File, Folder, FileCode, FileText, FolderPlus, FilePlus, Trash2, Edit3, X, Check } from "lucide-react";
+import { ChevronRight, ChevronDown, File, Folder, FileCode, FileText, FolderPlus, FilePlus, Trash2, Edit3, X, Check, Search } from "lucide-react";
 import { useVFS } from "@/lib/vfs-store";
+import { useT } from "@/lib/use-t";
 
 export function FilesModule() {
+  const t = useT();
   const vfs = useVFS();
   const [currentPath, setCurrentPath] = useState("/");
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
@@ -13,6 +15,7 @@ export function FilesModule() {
   const [editContent, setEditContent] = useState("");
   const [creating, setCreating] = useState<{ type: "file" | "folder"; parent: string } | null>(null);
   const [newName, setNewName] = useState("");
+  const [filter, setFilter] = useState("");
 
   useEffect(() => {
     vfs.init();
@@ -53,14 +56,15 @@ export function FilesModule() {
   }
 
   function createNew(type: "file" | "folder") {
-    if (!newName.trim()) return;
-    const fullPath = currentPath === "/" ? `/${newName}` : `${currentPath}/${newName}`;
+    if (!newName.trim() || !creating) return;
+    const parent = creating.parent;
+    const fullPath = parent === "/" ? `/${newName.trim()}` : `${parent}/${newName.trim()}`;
     if (type === "file") {
       vfs.createFile(fullPath, "");
     } else {
       vfs.createFolder(fullPath);
     }
-    setExpanded(prev => new Set(prev).add(currentPath));
+    setExpanded(prev => new Set(prev).add(parent));
     setCreating(null);
     setNewName("");
   }
@@ -73,9 +77,11 @@ export function FilesModule() {
   function renderTree(path: string, depth: number): React.ReactNode {
     const node = vfs.nodes[path];
     if (!node) return null;
+    const q = filter.trim().toLowerCase();
+    if (q && node.type === "file" && !node.name.toLowerCase().includes(q)) return null;
 
     if (node.type === "folder") {
-      const isOpen = expanded.has(path);
+      const isOpen = filter.trim() ? true : expanded.has(path);
       const children = (node.children || [])
         .map(p => vfs.nodes[p])
         .filter(Boolean)
@@ -95,14 +101,14 @@ export function FilesModule() {
             {getIcon(node)}
             <span className="truncate flex-1">{node.name}</span>
             <div className="flex gap-0.5 opacity-0 group-hover:opacity-100">
-              <button onClick={(e) => { e.stopPropagation(); setCreating({ type: "file", parent: path }); setNewName(""); }} className="text-white/40 hover:text-cyan-300">
+              <button title={t("common.newFile")} onClick={(e) => { e.stopPropagation(); setCreating({ type: "file", parent: path }); setNewName(""); }} className="text-white/40 hover:text-cyan-300">
                 <FilePlus className="w-2.5 h-2.5" />
               </button>
-              <button onClick={(e) => { e.stopPropagation(); setCreating({ type: "folder", parent: path }); setNewName(""); }} className="text-white/40 hover:text-cyan-300">
+              <button title={t("common.newFolder")} onClick={(e) => { e.stopPropagation(); setCreating({ type: "folder", parent: path }); setNewName(""); }} className="text-white/40 hover:text-cyan-300">
                 <FolderPlus className="w-2.5 h-2.5" />
               </button>
               {path !== "/" && (
-                <button onClick={(e) => { e.stopPropagation(); deleteFile(path); }} className="text-white/40 hover:text-rose-400">
+                <button title={t("common.delete")} onClick={(e) => { e.stopPropagation(); deleteFile(path); }} className="text-white/40 hover:text-rose-400">
                   <Trash2 className="w-2.5 h-2.5" />
                 </button>
               )}
@@ -137,10 +143,10 @@ export function FilesModule() {
         {getIcon(node)}
         <span className="truncate flex-1">{node.name}</span>
         <div className="flex gap-0.5 opacity-0 group-hover:opacity-100">
-          <button onClick={(e) => { e.stopPropagation(); selectFile(path); startEdit(); }} className="text-white/40 hover:text-cyan-300">
+          <button title={t("common.edit")} onClick={(e) => { e.stopPropagation(); selectFile(path); startEdit(); }} className="text-white/40 hover:text-cyan-300">
             <Edit3 className="w-2.5 h-2.5" />
           </button>
-          <button onClick={(e) => { e.stopPropagation(); deleteFile(path); }} className="text-white/40 hover:text-rose-400">
+          <button title={t("common.delete")} onClick={(e) => { e.stopPropagation(); deleteFile(path); }} className="text-white/40 hover:text-rose-400">
             <Trash2 className="w-2.5 h-2.5" />
           </button>
         </div>
@@ -157,13 +163,27 @@ export function FilesModule() {
         <div className="flex items-center justify-between px-2 py-1 mb-1">
           <span className="text-[10px] uppercase tracking-wider text-white/40">Explorer</span>
           <div className="flex gap-1">
-            <button onClick={() => { setCreating({ type: "file", parent: currentPath }); setNewName(""); }} className="text-white/40 hover:text-white">
+            <button title={t("common.newFile")} onClick={() => { setCreating({ type: "file", parent: currentPath }); setNewName(""); }} className="text-white/40 hover:text-white">
               <FilePlus className="w-3 h-3" />
             </button>
-            <button onClick={() => { setCreating({ type: "folder", parent: currentPath }); setNewName(""); }} className="text-white/40 hover:text-white">
+            <button title={t("common.newFolder")} onClick={() => { setCreating({ type: "folder", parent: currentPath }); setNewName(""); }} className="text-white/40 hover:text-white">
               <FolderPlus className="w-3 h-3" />
             </button>
           </div>
+        </div>
+        <div className="flex items-center gap-1.5 bg-black/40 border border-white/10 rounded-md px-2 py-1 mb-1">
+          <Search className="w-2.5 h-2.5 text-white/35 shrink-0" />
+          <input
+            value={filter}
+            onChange={(e) => setFilter(e.target.value)}
+            placeholder="Filter…"
+            className="flex-1 min-w-0 bg-transparent text-[11px] text-white/85 outline-none placeholder:text-white/30"
+          />
+          {filter && (
+            <button onClick={() => setFilter("")} title={t("common.clear")} className="text-white/35 hover:text-white/80">
+              <X className="w-2.5 h-2.5" />
+            </button>
+          )}
         </div>
         {renderTree("/", 0)}
       </div>
@@ -173,6 +193,11 @@ export function FilesModule() {
           {selectedNode && (
             <span className="text-[9px] px-1.5 py-0.5 rounded bg-violet-500/20 text-violet-300 uppercase">
               {selectedNode.name.split(".").pop() || "file"}
+            </span>
+          )}
+          {fileContent != null && (
+            <span className="text-[9px] font-mono text-white/35 whitespace-nowrap">
+              {fileContent.length < 1024 ? `${fileContent.length} B` : `${(fileContent.length / 1024).toFixed(1)} KB`} · {fileContent.split("\n").length} lines
             </span>
           )}
           {selectedFile && !editing && (
@@ -195,12 +220,12 @@ export function FilesModule() {
           <textarea
             value={editContent}
             onChange={(e) => setEditContent(e.target.value)}
-            className="flex-1 bg-black/40 text-[11px] font-mono text-white/90 outline-none resize-none p-3 thin-scroll"
+            className="flex-1 min-h-0 bg-black/40 text-[11px] font-mono text-white/90 outline-none resize-none p-3 thin-scroll"
             spellCheck={false}
           />
         ) : (
-          <pre className="flex-1 overflow-auto thin-scroll p-3 text-[11px] font-mono text-white/80 whitespace-pre-wrap">
-            {fileContent ?? <span className="text-white/30">Select a file to preview</span>}
+          <pre className="flex-1 min-h-0 overflow-auto thin-scroll p-3 text-[11px] font-mono text-white/80 whitespace-pre-wrap">
+            {fileContent ?? <span className="text-white/40">Select a file to preview</span>}
           </pre>
         )}
       </div>

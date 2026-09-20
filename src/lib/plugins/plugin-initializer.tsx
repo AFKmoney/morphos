@@ -40,15 +40,9 @@ export function addBuiltinPlugin(plugin: MorphOSPlugin, source: PluginSource = {
 }
 
 function registerWithRuntime(plugin: MorphOSPlugin, source: PluginSource) {
-  const store = getPluginRegistry() as unknown as {
-    getState: () => {
-      register: (p: MorphOSPlugin, s?: PluginSource) => string;
-      installed: Map<string, unknown>;
-    };
-    setState: (partial: Record<string, unknown>) => void;
-  };
+  const store = getPluginRegistry();
   store.getState().register(plugin, source);
-  const installed = new Map(store.getState().installed as Map<string, unknown>);
+  const installed = new Map(store.getState().installed);
   const { component, settingsComponent, onLoad, onUnload, onSettingsChange, api, ...manifest } = plugin;
   installed.set(plugin.id, {
     manifest,

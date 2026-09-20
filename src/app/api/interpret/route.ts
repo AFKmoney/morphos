@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import ZAI from "z-ai-web-dev-sdk";
 import type { ProviderId, ApiStyle } from "@/lib/providers";
 import { PROVIDERS } from "@/lib/providers";
+import { ALLOWED_MODULES, buildCodePreview, fallbackInterpret } from "@/lib/fallback-interpret";
+import { anthropicChat, cohereChat, openaiChat } from "@/lib/llm";
 
 export type ModuleType =
   | "chat" | "monitor" | "dashboard" | "terminal" | "kanban"
@@ -55,7 +57,7 @@ Modules disponibles (et ONLY ceux-là) :
 - regex : testeur de regex
 - json : formateur / minifieur JSON
 - colorpicker : sélecteur de couleur avec harmonies
-- qr : générateur de QR code (visuel)
+- qr : générateur de QR code
 - devtools : outils base64/URL/hash/UUID/binary/hex/ROT13
 - files : explorateur de fichiers virtuel
 - browser : navigateur web (iframe)
@@ -101,7 +103,7 @@ Available modules (ONLY these):
 - regex: regex pattern tester
 - json: JSON formatter / minifier
 - colorpicker: color picker with harmonies
-- qr: QR code generator (visual)
+- qr: QR code generator
 - devtools: base64/URL/hash/UUID/binary/hex/ROT13 tools
 - files: virtual file explorer
 - browser: web browser (iframe)
@@ -125,57 +127,6 @@ Rules:
 - Respond ONLY the JSON, no surrounding text.`;
 }
 
-const FALLBACK_RULES: { keywords: string[]; type: ModuleType; titleEn: string; titleFr: string }[] = [
-  { keywords: ["moniteur", "monitor", "system", "cpu", "ram", "memoire", "memory", "performance"], type: "monitor", titleEn: "System Monitor", titleFr: "Moniteur Système" },
-  { keywords: ["dashboard", "analytics", "vente", "sales", "trafic", "traffic", "kpi"], type: "dashboard", titleEn: "Analytics Dashboard", titleFr: "Dashboard Analytics" },
-  { keywords: ["terminal", "shell", "console", "command", "bash"], type: "terminal", titleEn: "Live Terminal", titleFr: "Terminal Live" },
-  { keywords: ["kanban", "tache", "task", "todo", "projet", "project", "ticket", "board"], type: "kanban", titleEn: "Operations Kanban", titleFr: "Kanban Opérations" },
-  { keywords: ["note", "notes", "markdown", "document", "rédige", "redige", "draft", "texte", "text"], type: "notes", titleEn: "Markdown Notes", titleFr: "Notes Markdown" },
-  { keywords: ["code", "éditeur", "editor", "snippet", "fonction", "function", "script"], type: "code", titleEn: "Code Editor", titleFr: "Éditeur de Code" },
-  { keywords: ["météo", "meteo", "weather", "température", "temperature", "climat", "climate"], type: "weather", titleEn: "Weather", titleFr: "Météo" },
-  { keywords: ["horloge", "clock", "heure", "time", "monde", "world"], type: "clock", titleEn: "World Clock", titleFr: "Horloge Mondiale" },
-  { keywords: ["musique", "music", "audio", "player", "son", "sound", "playlist"], type: "music", titleEn: "Audio Player", titleFr: "Lecteur Audio" },
-  { keywords: ["calculatrice", "calculator", "calcul", "calculate", "math"], type: "calculator", titleEn: "Calculator", titleFr: "Calculatrice" },
-  { keywords: ["stock", "action", "share", "market", "bourse", "finance", "trading"], type: "stock", titleEn: "Live Markets", titleFr: "Markets Live" },
-  { keywords: ["caméra", "camera", "webcam", "vision", "flux", "stream"], type: "camera", titleEn: "Camera Vision", titleFr: "Vision Caméra" },
-  { keywords: ["métriques", "metriques", "metrics", "grafana", "influx", "prometheus"], type: "metrics", titleEn: "Real-time Metrics", titleFr: "Métriques Temps Réel" },
-  { keywords: ["chat", "discussion", "message", "parle", "talk", "assistant"], type: "chat", titleEn: "MorphOS Console", titleFr: "Console MorphOS" },
-];
-
-function fallbackInterpret(prompt: string, lang: "en" | "fr"): InterpretResult {
-  const p = prompt.toLowerCase();
-  const rule = FALLBACK_RULES.find((r) => r.keywords.some((k) => p.includes(k)));
-  const moduleType = rule?.type ?? "chat";
-  const title = lang === "fr" ? (rule?.titleFr ?? "Console MorphOS") : (rule?.titleEn ?? "MorphOS Console");
-  const aiMessage = lang === "fr"
-    ? `Je génère le module « ${title} ». Hot-reload en cours…`
-    : `Generating the "${title}" module. Hot-reload in progress…`;
-  return {
-    moduleType,
-    title,
-    aiMessage,
-    codePreview: buildCodePreview(moduleType, title),
-  };
-}
-
-function buildCodePreview(type: ModuleType, title: string): string[] {
-  const cap = type.charAt(0).toUpperCase() + type.slice(1);
-  return [
-    `// MorphOS — generating module: ${type}`,
-    `import { createModule } from "@morphos/core";`,
-    ``,
-    `export const ${type}Module = createModule({`,
-    `  type: "${type}",`,
-    `  title: "${title}",`,
-    `  live: true,`,
-    `  hotSwap: true,`,
-    `  render: () => <${cap}View />`,
-    `});`,
-    ``,
-    `// → mounting into window registry…`,
-  ];
-}
-
 // ============ Provider dispatchers ============
 
 async function callOpenAIStyle(
@@ -186,27 +137,7 @@ async function callOpenAIStyle(
   temperature: number,
   maxTokens: number
 ): Promise<string> {
-  const url = baseUrl.endsWith("/")
-    ? `${baseUrl}chat/completions`
-    : `${baseUrl}/chat/completions`;
-  const headers: Record<string, string> = { "Content-Type": "application/json" };
-  if (apiKey) headers["Authorization"] = `Bearer ${apiKey}`;
-  const res = await fetch(url, {
-    method: "POST",
-    headers,
-    body: JSON.stringify({
-      model,
-      messages,
-      temperature,
-      max_tokens: maxTokens,
-    }),
-  });
-  if (!res.ok) {
-    const text = await res.text().catch(() => "");
-    throw new Error(`HTTP ${res.status}: ${text.slice(0, 200)}`);
-  }
-  const data = await res.json();
-  return data?.choices?.[0]?.message?.content ?? "";
+  return openaiChat({ baseUrl, apiKey, model, messages, temperature, maxTokens });
 }
 
 async function callAnthropicStyle(
@@ -218,30 +149,7 @@ async function callAnthropicStyle(
   temperature: number,
   maxTokens: number
 ): Promise<string> {
-  const url = baseUrl.endsWith("/")
-    ? `${baseUrl}messages`
-    : `${baseUrl}/messages`;
-  const res = await fetch(url, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-api-key": apiKey,
-      "anthropic-version": "2023-06-01",
-    },
-    body: JSON.stringify({
-      model,
-      system: systemPrompt,
-      messages: messages.map((m) => ({ role: m.role === "system" ? "user" : m.role, content: m.content })),
-      temperature,
-      max_tokens: maxTokens,
-    }),
-  });
-  if (!res.ok) {
-    const text = await res.text().catch(() => "");
-    throw new Error(`HTTP ${res.status}: ${text.slice(0, 200)}`);
-  }
-  const data = await res.json();
-  return data?.content?.[0]?.text ?? "";
+  return anthropicChat({ baseUrl, apiKey, model, messages, systemPrompt, temperature, maxTokens });
 }
 
 async function callCohereStyle(
@@ -252,28 +160,7 @@ async function callCohereStyle(
   temperature: number,
   maxTokens: number
 ): Promise<string> {
-  const url = baseUrl.endsWith("/")
-    ? `${baseUrl}chat`
-    : `${baseUrl}/chat`;
-  const res = await fetch(url, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      model,
-      messages,
-      temperature,
-      max_tokens: maxTokens,
-    }),
-  });
-  if (!res.ok) {
-    const text = await res.text().catch(() => "");
-    throw new Error(`HTTP ${res.status}: ${text.slice(0, 200)}`);
-  }
-  const data = await res.json();
-  return data?.message?.content?.[0]?.text ?? data?.text ?? "";
+  return cohereChat({ baseUrl, apiKey, model, messages, temperature, maxTokens });
 }
 
 // ============ Main handler ============
@@ -281,7 +168,7 @@ async function callCohereStyle(
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json().catch(() => ({}));
-    const prompt: string = (body.prompt ?? "").toString().trim();
+    const prompt: string = (body.prompt ?? "").toString().trim().slice(0, 4000);
     const history: { role: string; content: string }[] = Array.isArray(body.history) ? body.history : [];
     const lang: "en" | "fr" = body.language === "fr" ? "fr" : "en";
     const provider: ProviderPayload = body.provider ?? { providerId: "zai", apiKey: "", baseUrl: "", model: "" };
@@ -319,21 +206,7 @@ export async function POST(req: NextRequest) {
         try {
           const baseUrl = provider.baseUrl || "https://api.z.ai/api/paas/v4";
           const model = provider.model || "glm-4.6";
-          const url = baseUrl.endsWith("/") ? `${baseUrl}chat/completions` : `${baseUrl}/chat/completions`;
-          const res = await fetch(url, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${provider.apiKey}`,
-            },
-            body: JSON.stringify({ model, messages, temperature: 0.4, max_tokens: 400 }),
-          });
-          if (!res.ok) {
-            const text = await res.text().catch(() => "");
-            throw new Error(`HTTP ${res.status}: ${text.slice(0, 200)}`);
-          }
-          const data = await res.json();
-          raw = data?.choices?.[0]?.message?.content ?? "";
+          raw = await openaiChat({ baseUrl, apiKey: provider.apiKey, model, messages, temperature: 0.4, maxTokens: 400 });
         } catch (e) {
           console.error("[interpret] Z.ai custom key error:", e);
           raw = "";
@@ -391,22 +264,9 @@ export async function POST(req: NextRequest) {
       if (match) {
         try {
           const obj = JSON.parse(match[0]);
-          const allowed: ModuleType[] = [
-            "chat","monitor","dashboard","terminal","kanban","notes","code",
-            "weather","clock","music","calculator","stock","camera","metrics",
-            "pomodoro","paint","regex","json","colorpicker","qr","devtools",
-            "files","browser","calendar","whiteboard","custom","imagegen"
-          ];
-          let moduleType = (allowed.includes(obj.moduleType) ? obj.moduleType : "chat") as ModuleType;
-
-          // Redirect unsupported module types to custom (they'll be AI-generated)
-          const supportedTypes: ModuleType[] = ["chat","monitor","dashboard","terminal","kanban","notes","code","weather","clock","music","calculator","stock","camera","metrics","custom","imagegen"];
-          if (!supportedTypes.includes(moduleType)) {
-            // Convert to custom with the original request as prompt
-            const customPrompt = obj.prompt || prompt;
-            moduleType = "custom";
-            obj.prompt = customPrompt;
-          }
+          const allowed: ModuleType[] = ALLOWED_MODULES as ModuleType[];
+          // All built-in types are supported by the module registry — no redirect.
+          const moduleType = (allowed.includes(obj.moduleType) ? obj.moduleType : "chat") as ModuleType;
 
           const title = (obj.title ?? "Module").toString().slice(0, 60);
           const aiMessage = (obj.aiMessage ?? `Spawning ${title}.`).toString();

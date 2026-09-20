@@ -2,11 +2,12 @@
 
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Search, CornerDownLeft, ArrowUp, ArrowDown } from "lucide-react";
+import { Search, CornerDownLeft, ArrowUp, ArrowDown, LayoutGrid, Layers, Minimize2 } from "lucide-react";
 import { useWindowStore, type ModuleType } from "@/lib/window-store";
-import { MODULE_REGISTRY, getModuleMeta } from "./module-registry";
+import { MODULE_REGISTRY, getModuleMeta, getDefaultModuleSize } from "./module-registry";
 import { useSettings } from "@/lib/settings-store";
 import { useT } from "@/lib/use-t";
+import { useAIContext } from "@/lib/ai-context-store";
 import { cn } from "@/lib/utils";
 
 interface Command {
@@ -19,46 +20,24 @@ interface Command {
   group: "spawn" | "system";
 }
 
-const MODULE_SIZES: Record<string, { width: number; height: number }> = {
-  chat: { width: 460, height: 560 },
-  monitor: { width: 540, height: 420 },
-  dashboard: { width: 720, height: 480 },
-  terminal: { width: 600, height: 380 },
-  kanban: { width: 680, height: 460 },
-  notes: { width: 480, height: 460 },
-  code: { width: 680, height: 480 },
-  weather: { width: 380, height: 460 },
-  clock: { width: 360, height: 240 },
-  music: { width: 420, height: 480 },
-  calculator: { width: 320, height: 440 },
-  stock: { width: 540, height: 380 },
-  camera: { width: 480, height: 420 },
-  metrics: { width: 560, height: 380 },
-  pomodoro: { width: 320, height: 420 },
-  paint: { width: 580, height: 480 },
-  regex: { width: 540, height: 520 },
-  json: { width: 560, height: 440 },
-  colorpicker: { width: 380, height: 540 },
-  qr: { width: 360, height: 480 },
-  devtools: { width: 480, height: 540 },
-  files: { width: 580, height: 460 },
-  browser: { width: 720, height: 560 },
-  calendar: { width: 380, height: 480 },
-  whiteboard: { width: 580, height: 480 },
-  imagegen: { width: 420, height: 560 },
-};
-
 export function CommandPalette({ open, onClose }: { open: boolean; onClose: () => void }) {
   const t = useT();
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
+  const itemRefs = useRef<(HTMLButtonElement | null)[]>([]);
 
   const spawnWindow = useWindowStore((s) => s.spawnWindow);
   const windows = useWindowStore((s) => s.windows);
   const closeAll = useWindowStore((s) => s.closeAll);
+  const updateGeometry = useWindowStore((s) => s.updateGeometry);
+  const toggleMaximize = useWindowStore((s) => s.toggleMaximize);
+  const minimizeWindow = useWindowStore((s) => s.minimizeWindow);
   const openSettings = useSettings((s) => s.openSettings);
   const toggleLanguage = useSettings((s) => s.toggleLanguage);
+  const fr = useSettings((s) => s.language) === "fr";
+  const recentModules = useAIContext((s) => s.recentModules);
+  const addRecentModule = useAIContext((s) => s.addRecentModule);
 
   useEffect(() => {
     if (open) setTimeout(() => inputRef.current?.focus(), 50);
@@ -66,7 +45,7 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
 
   function quickSpawn(type: ModuleType) {
     const meta = getModuleMeta(type);
-    const def = MODULE_SIZES[type] ?? { width: 480, height: 400 };
+    const def = getDefaultModuleSize(type);
     const offset = windows.length;
     const col = offset % 3;
     const row = Math.floor(offset / 3) % 2;
@@ -83,6 +62,45 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
       y: Math.max(56, Math.min(vh - def.height - 100, baseY)),
       width: def.width,
       height: def.height,
+    });
+    addRecentModule(type);
+    onClose();
+  }
+
+  function tileWindows() {
+    const wins = windows.filter((w) => !w.minimized);
+    if (wins.length === 0) return;
+    const cols = Math.ceil(Math.sqrt(wins.length));
+    const rows = Math.ceil(wins.length / cols);
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const top = 48;
+    const cw = Math.floor((vw - 16) / cols);
+    const ch = Math.floor((vh - top - 16) / rows);
+    wins.forEach((w, i) => {
+      if (w.maximized) toggleMaximize(w.id);
+      updateGeometry(w.id, {
+        x: 8 + (i % cols) * cw,
+        y: top + 8 + Math.floor(i / cols) * ch,
+        width: Math.max(280, cw - 8),
+        height: Math.max(200, ch - 8),
+      });
+    });
+    onClose();
+  }
+
+  function cascadeWindows() {
+    const wins = windows.filter((w) => !w.minimized);
+    if (wins.length === 0) return;
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    wins.forEach((w, i) => {
+      if (w.maximized) toggleMaximize(w.id);
+      const k = i % 10;
+      updateGeometry(w.id, {
+        x: Math.max(8, Math.min(vw - 300, 60 + k * 36)),
+        y: Math.max(56, Math.min(vh - 220, 56 + k * 36)),
+      });
     });
     onClose();
   }
@@ -102,16 +120,32 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
     { id: "settings", label: t("settings.title"), hint: t("settings.subtitle"), icon: Settings2, accent: "#22d3ee", action: () => { openSettings(); onClose(); }, group: "system" },
     { id: "lang", label: "Toggle language (EN/FR)", hint: "Switch interface language", icon: Globe, accent: "#34d399", action: () => { toggleLanguage(); onClose(); }, group: "system" },
     { id: "close-all", label: t("topbar.closeAll"), hint: "Close every window", icon: XCircle, accent: "#f43f5e", action: () => { closeAll(); onClose(); }, group: "system" },
+    { id: "tile", label: "Tile windows", hint: "Arrange all windows in a grid", icon: LayoutGrid, accent: "#22d3ee", action: tileWindows, group: "system" },
+    { id: "cascade", label: "Cascade windows", hint: "Stack all windows diagonally", icon: Layers, accent: "#a78bfa", action: cascadeWindows, group: "system" },
+    { id: "min-all", label: "Minimize all", hint: "Minimize every window", icon: Minimize2, accent: "#94a3b8", action: () => { windows.forEach((w) => { if (!w.minimized) minimizeWindow(w.id); }); onClose(); }, group: "system" },
   ];
 
-  const filtered = query
+  const searched = query
     ? commands.filter((c) => {
         const q = query.toLowerCase();
         return c.label.toLowerCase().includes(q) || c.hint?.toLowerCase().includes(q) || c.id.includes(q);
       })
     : commands;
+  // Real usage first: recently spawned modules float to the top when no query
+  const recentCmds: Command[] = !query
+    ? recentModules
+        .map((rt) => commands.find((c) => c.id === `spawn-${rt}`))
+        .filter((c): c is Command => !!c)
+    : [];
+  const recentIds = new Set(recentCmds.map((c) => c.id));
+  const filtered = [...recentCmds, ...searched.filter((c) => !recentIds.has(c.id))];
 
   const safeSelected = Math.min(selected, Math.max(0, filtered.length - 1));
+
+  // Keep the keyboard-selected item visible while navigating.
+  useEffect(() => {
+    itemRefs.current[safeSelected]?.scrollIntoView({ block: "nearest" });
+  }, [safeSelected, open]);
 
   function onKeyDown(e: React.KeyboardEvent) {
     if (e.key === "ArrowDown") { e.preventDefault(); setSelected((s) => Math.min(s + 1, filtered.length - 1)); }
@@ -129,7 +163,7 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
           <motion.div
             initial={{ opacity: 0, scale: 0.96, y: -20 }} animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.96, y: -20 }} transition={{ type: "spring", stiffness: 320, damping: 28 }}
-            className="fixed top-[20%] left-1/2 -translate-x-1/2 z-[1101] glass-panel-strong rounded-2xl overflow-hidden w-[600px] max-w-[94vw]"
+            className="fixed top-[10%] sm:top-[16%] left-1/2 -translate-x-1/2 z-[1101] glass-panel-strong rounded-2xl overflow-hidden w-[600px] max-w-[94vw]"
           >
             <div className="flex items-center gap-2 px-4 py-3 border-b border-white/10">
               <Search className="w-4 h-4 text-cyan-400" />
@@ -144,16 +178,26 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
               <kbd className="text-[10px] text-white/40 bg-white/5 border border-white/10 rounded px-1.5 py-0.5">ESC</kbd>
             </div>
 
-            <div className="max-h-[420px] overflow-y-auto thin-scroll p-2">
+            <div className="max-h-[min(420px,58vh)] overflow-y-auto thin-scroll p-2">
               {filtered.length === 0 ? (
                 <div className="text-center text-white/40 text-sm py-8">No results for "{query}"</div>
               ) : (
                 filtered.map((cmd, i) => {
                   const Icon = cmd.icon;
                   const isSelected = i === safeSelected;
+                  const showRecentHd = !query && recentCmds.length > 0 && i === 0;
+                  const showAllHd = !query && recentCmds.length > 0 && i === recentCmds.length;
                   return (
+                    <div key={cmd.id}>
+                    {(showRecentHd || showAllHd) && (
+                      <div className="text-[9px] uppercase tracking-widest text-white/35 font-mono px-3 pt-2 pb-0.5">
+                        {showRecentHd ? (fr ? "Récents" : "Recent") : (fr ? "Tous les modules" : "All modules")}
+                      </div>
+                    )}
                     <button
-                      key={cmd.id}
+                      ref={(el) => {
+                        itemRefs.current[i] = el;
+                      }}
                       onClick={cmd.action}
                       onMouseEnter={() => setSelected(i)}
                       className={cn("w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left transition", isSelected ? "bg-cyan-500/15" : "hover:bg-white/5")}
@@ -166,9 +210,10 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
                         <div className="text-sm text-white truncate">{cmd.label}</div>
                         {cmd.hint && <div className="text-[10px] text-white/40 truncate">{cmd.hint}</div>}
                       </div>
-                      <span className="text-[9px] uppercase tracking-wider text-white/30">{cmd.group}</span>
+                      <span className="text-[9px] uppercase tracking-wider text-white/50">{cmd.group}</span>
                       {isSelected && <CornerDownLeft className="w-3 h-3 text-cyan-400" />}
                     </button>
+                    </div>
                   );
                 })
               )}

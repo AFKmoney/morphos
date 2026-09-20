@@ -3,46 +3,27 @@
 import { useState } from "react";
 import { Plus, X, GripVertical } from "lucide-react";
 import { useModulePersist } from "@/lib/module-state-store";
+import { useT } from "@/lib/use-t";
 
 interface Card { id: string; title: string; tag?: string; }
 interface Column { id: string; title: string; color: string; cards: Card[]; }
 
 const INITIAL: Column[] = [
-  {
-    id: "backlog", title: "Backlog", color: "#94a3b8",
-    cards: [
-      { id: "c1", title: "Refactor morph-engine", tag: "tech" },
-      { id: "c2", title: "Spec: custom layouts", tag: "design" },
-    ],
-  },
-  {
-    id: "doing", title: "En cours", color: "#22d3ee",
-    cards: [
-      { id: "c3", title: "Module multi-window drag", tag: "wip" },
-      { id: "c4", title: "Hot-swap API route" },
-    ],
-  },
-  {
-    id: "review", title: "Review", color: "#fbbf24",
-    cards: [
-      { id: "c5", title: "Code preview animation", tag: "ui" },
-    ],
-  },
-  {
-    id: "done", title: "Done", color: "#34d399",
-    cards: [
-      { id: "c6", title: "Zustand store", tag: "done" },
-      { id: "c7", title: "Module registry" },
-    ],
-  },
+  { id: "backlog", title: "Backlog", color: "#94a3b8", cards: [] },
+  { id: "doing", title: "En cours", color: "#22d3ee", cards: [] },
+  { id: "review", title: "Review", color: "#fbbf24", cards: [] },
+  { id: "done", title: "Done", color: "#34d399", cards: [] },
 ];
 
 export function KanbanModule() {
+  const t = useT();
   const [cols, setCols] = useModulePersist<Column[]>("kanban:columns", INITIAL);
   const [dragId, setDragId] = useState<string | null>(null);
   const [dragFrom, setDragFrom] = useState<string | null>(null);
   const [adding, setAdding] = useState<string | null>(null);
   const [newTitle, setNewTitle] = useState("");
+  const [editing, setEditing] = useState<string | null>(null);
+  const [editTitle, setEditTitle] = useState("");
 
   function onDragStart(cardId: string, colId: string) {
     setDragId(cardId);
@@ -79,6 +60,20 @@ export function KanbanModule() {
     setAdding(null);
   }
 
+  function commitEdit(cardId: string) {
+    const title = editTitle.trim();
+    if (title) {
+      setCols((prev) =>
+        prev.map((c) => ({
+          ...c,
+          cards: c.cards.map((card) => (card.id === cardId ? { ...card, title } : card)),
+        }))
+      );
+    }
+    setEditing(null);
+    setEditTitle("");
+  }
+
   function deleteCard(cardId: string) {
     setCols((prev) =>
       prev.map((c) => ({ ...c, cards: c.cards.filter((card) => card.id !== cardId) }))
@@ -90,7 +85,7 @@ export function KanbanModule() {
       {cols.map((col) => (
         <div
           key={col.id}
-          className="flex flex-col w-[160px] shrink-0"
+          className="flex flex-col w-[160px] min-h-0 shrink-0"
           onDragOver={(e) => e.preventDefault()}
           onDrop={() => onDropTo(col.id)}
         >
@@ -102,12 +97,13 @@ export function KanbanModule() {
             </div>
             <button
               onClick={() => setAdding(adding === col.id ? null : col.id)}
+              title={t("common.add")}
               className="text-white/40 hover:text-white/80"
             >
               <Plus className="w-3 h-3" />
             </button>
           </div>
-          <div className="flex-1 space-y-1.5 overflow-y-auto thin-scroll">
+          <div className="flex-1 min-h-0 space-y-1.5 overflow-y-auto thin-scroll">
             {col.cards.map((card) => (
               <div
                 key={card.id}
@@ -117,8 +113,30 @@ export function KanbanModule() {
               >
                 <div className="flex items-start gap-1">
                   <GripVertical className="w-3 h-3 text-white/30 mt-0.5 group-hover:text-white/60" />
-                  <div className="flex-1 text-xs text-white/90 leading-snug">{card.title}</div>
+                  {editing === card.id ? (
+                    <input
+                      autoFocus
+                      value={editTitle}
+                      onChange={(e) => setEditTitle(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") commitEdit(card.id);
+                        if (e.key === "Escape") { setEditing(null); setEditTitle(""); }
+                      }}
+                      onBlur={() => commitEdit(card.id)}
+                      onClick={(e) => e.stopPropagation()}
+                      className="flex-1 min-w-0 bg-black/40 border border-cyan-400/40 rounded px-1 text-xs text-white/90 outline-none"
+                    />
+                  ) : (
+                    <div
+                      className="flex-1 text-xs text-white/90 leading-snug"
+                      onDoubleClick={() => { setEditing(card.id); setEditTitle(card.title); }}
+                      title={t("common.edit")}
+                    >
+                      {card.title}
+                    </div>
+                  )}
                   <button
+                    title={t("common.delete")}
                     onClick={() => deleteCard(card.id)}
                     className="opacity-0 group-hover:opacity-100 text-white/40 hover:text-rose-400"
                   >
@@ -145,7 +163,7 @@ export function KanbanModule() {
                     if (e.key === "Escape") { setAdding(null); setNewTitle(""); }
                   }}
                   placeholder="Titre…"
-                  className="w-full bg-transparent text-xs outline-none resize-none text-white/90 placeholder:text-white/30"
+                  className="w-full bg-transparent text-xs outline-none resize-none text-white/90 placeholder:text-white/40 thin-scroll"
                   rows={2}
                 />
                 <div className="flex gap-1 mt-1">
@@ -165,7 +183,7 @@ export function KanbanModule() {
               </div>
             )}
             {!col.cards.length && adding !== col.id && (
-              <div className="text-[10px] text-white/30 text-center py-4 border border-dashed border-white/10 rounded-md">
+              <div className="text-[10px] text-white/40 text-center py-4 border border-dashed border-white/10 rounded-md">
                 vide
               </div>
             )}

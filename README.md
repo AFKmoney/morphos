@@ -31,10 +31,10 @@ Describe what you need in plain language. MorphOS decides which module to spawn 
 | 📷 Camera | 📡 Metrics | ⏲️ Pomodoro | 🎨 Paint |
 | 🔍 Regex | {} JSON | 🎨 Color Picker | 📱 QR Code |
 | 🔧 Dev Tools | 📁 Files | 🌐 Browser | 📅 Calendar |
-| ✏️ Whiteboard | 🖼️ Image Gen | ✨ Custom AI | |
+| ✏️ Whiteboard | 🖼️ Image Gen | ✨ Custom AI | 🧩 Plugins |
 
-### 🤖 13 LLM Providers
-Z.ai (GLM), OpenAI, Anthropic, Mistral, NVIDIA NIM, LM Studio, Ollama, Groq, OpenRouter, Together AI, Cohere, DeepSeek, and custom endpoints — all with streaming SSE support.
+### 🤖 14 LLM Providers
+Z.ai (GLM), OpenAI, Anthropic, Mistral, NVIDIA NIM, LM Studio, Ollama, Groq, OpenRouter, Together AI, Cohere, DeepSeek, xAI (Grok), and custom endpoints — all with streaming SSE support.
 
 ### 🖥️ Real Window Manager
 - Drag, resize (8 handles), minimize, maximize, restore
@@ -95,6 +95,24 @@ Open [http://localhost:3000](http://localhost:3000) and start talking to MorphOS
 ### Default Provider
 MorphOS uses **Z.ai (GLM-4.6)** out of the box — no API key needed. To use other providers, open Settings (gear icon, top-right) and configure your API key.
 
+### NVIDIA NIM setup (free Kimi K2.5)
+1. Get a key at [build.nvidia.com](https://build.nvidia.com) (starts with `nvapi-…`).
+2. Open **Settings → AI Provider → NVIDIA NIM**, paste the key, keep model `moonshotai/kimi-k2.5`.
+3. Click **Test** — you should see a reply plus the model count.
+4. If your model fails but the key is accepted, the endpoint lists its live models — click one to apply it and retest.
+
+> ⚠️ Run MorphOS on your own machine for AI providers: hosted preview sandboxes often block outbound traffic to `integrate.api.nvidia.com` (the Test button will tell you exactly that).
+
+### Troubleshooting
+| Symptom | Cause → Fix |
+|---|---|
+| `Network error: cannot reach … blocked from here` | Sandbox/hosted preview egress filtering → run locally (`bun install && bun run dev`). |
+| `API server returned an HTML page` | Backend down or outdated → restart `bun run dev`. |
+| `HTTP 401: Invalid API key` | Wrong/revoked key → regenerate it on the provider site. |
+| `Key accepted, but model … failed` | Retired model ID → click a live model chip in Settings. |
+| `… timed out after 30s` | Slow provider → retry; check provider status page. |
+| Z.ai default provider fails | The `z-ai-web-dev-sdk` reads a `.z-ai-config` file (project root, home, or `/etc`) — create one or switch provider in Settings. |
+
 ---
 
 ## 🎯 How to Use
@@ -125,13 +143,15 @@ src/
 │   ├── layout.tsx              — ThemeProvider wrapper
 │   └── globals.css             — Dark theme + animations
 ├── lib/
-│   ├── providers.ts            — 13 LLM provider configs
+│   ├── providers.ts            — 14 LLM provider configs
 │   ├── i18n.ts                 — EN/FR translations (130+ keys)
 │   ├── settings-store.ts       — Zustand + localStorage persist
 │   ├── window-store.ts         — Window manager (persisted)
 │   ├── module-state-store.ts   — Module state persistence
 │   ├── ai-context-store.ts     — AI memory (persisted)
 │   ├── vfs-store.ts            — Virtual File System (IndexedDB)
+│   ├── fallback-interpret.ts   — Offline keyword fallback (shared by interpret routes)
+│   ├── plugins/                — Plugin registry + built-in plugins
 │   ├── use-t.ts                — Translation hook
 │   ├── use-voice-input.ts      — Web Speech API hook
 │   └── utils.ts                — Utilities

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import ZAI from "z-ai-web-dev-sdk";
 import { PROVIDERS, type ProviderId } from "@/lib/providers";
+import { anthropicChat, cohereChat, LlmError, openaiChat, openaiModels } from "@/lib/llm";
 
 interface TestPayload {
   providerId: ProviderId;
@@ -9,14 +10,16 @@ interface TestPayload {
   model: string;
 }
 
+const trim = (v: unknown) => (v ?? "").toString().trim();
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json().catch(() => ({}));
     const provider: TestPayload = {
       providerId: body.providerId ?? "zai",
-      apiKey: body.apiKey ?? "",
-      baseUrl: body.baseUrl ?? "",
-      model: body.model ?? "",
+      apiKey: trim(body.apiKey),
+      baseUrl: trim(body.baseUrl),
+      model: trim(body.model),
     };
 
     if (provider.providerId === "zai") {
@@ -25,28 +28,16 @@ export async function POST(req: NextRequest) {
         try {
           const baseUrl = provider.baseUrl || "https://api.z.ai/api/paas/v4";
           const model = provider.model || "glm-4.6";
-          const url = baseUrl.endsWith("/") ? `${baseUrl}chat/completions` : `${baseUrl}/chat/completions`;
-          const res = await fetch(url, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${provider.apiKey}`,
-            },
-            body: JSON.stringify({
-              model,
-              messages: [{ role: "user", content: "Say OK" }],
-              max_tokens: 5,
-            }),
+          const txt = await openaiChat({
+            baseUrl,
+            apiKey: provider.apiKey,
+            model,
+            messages: [{ role: "user", content: "Say OK" }],
+            maxTokens: 5,
           });
-          if (!res.ok) {
-            const text = await res.text().catch(() => "");
-            return NextResponse.json({ ok: false, error: `HTTP ${res.status}: ${text.slice(0, 150)}` }, { status: 502 });
-          }
-          const data = await res.json();
-          const txt = data?.choices?.[0]?.message?.content ?? "";
           return NextResponse.json({ ok: true, reply: txt.slice(0, 80) });
         } catch (e) {
-          return NextResponse.json({ ok: false, error: String(e) }, { status: 502 });
+          return NextResponse.json({ ok: false, error: String(e instanceof Error ? e.message : e) }, { status: 502 });
         }
       }
       // Built-in Z.ai via SDK
@@ -59,7 +50,7 @@ export async function POST(req: NextRequest) {
         const txt = c.choices?.[0]?.message?.content ?? "";
         return NextResponse.json({ ok: true, reply: txt.slice(0, 80) });
       } catch (e) {
-        return NextResponse.json({ ok: false, error: String(e) }, { status: 502 });
+        return NextResponse.json({ ok: false, error: String(e instanceof Error ? e.message : e) }, { status: 502 });
       }
     }
 
@@ -77,62 +68,57 @@ export async function POST(req: NextRequest) {
     const messages = [{ role: "user", content: "Reply with the single word: OK" }];
 
     try {
-      let reply = "";
       if (cfg.apiStyle === "openai") {
-        const url = baseUrl.endsWith("/") ? `${baseUrl}chat/completions` : `${baseUrl}/chat/completions`;
-        const headers: Record<string, string> = { "Content-Type": "application/json" };
-        if (apiKey) headers["Authorization"] = `Bearer ${apiKey}`;
-        const res = await fetch(url, {
-          method: "POST",
-          headers,
-          body: JSON.stringify({ model, messages, max_tokens: 10 }),
-        });
-        if (!res.ok) {
-          const t = await res.text().catch(() => "");
-          return NextResponse.json({ ok: false, error: `HTTP ${res.status}: ${t.slice(0, 150)}` }, { status: 502 });
+        // Step 1: validate key + endpoint via /v1/models (no model ID needed).
+        // This tells "bad key" apart from "bad model".
+        let models: string[] | null = null;
+        try {
+          models = await openaiModels({ baseUrl, apiKey });
+        } catch (e) {
+          if (e instanceof LlmError && e.status === 404) {
+            models = null; // server doesn't implement /models — fall through to chat test
+          } else {
+            return NextResponse.json(
+              { ok: false, error: e instanceof Error ? e.message : String(e) },
+              { status: 502 }
+            );
+          }
         }
-        const data = await res.json();
-        reply = data?.choices?.[0]?.message?.content ?? "";
-      } else if (cfg.apiStyle === "anthropic") {
-        const url = baseUrl.endsWith("/") ? `${baseUrl}messages` : `${baseUrl}/messages`;
-        const res = await fetch(url, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "x-api-key": apiKey,
-            "anthropic-version": "2023-06-01",
-          },
-          body: JSON.stringify({
-            model,
-            messages,
-            max_tokens: 10,
-          }),
-        });
-        if (!res.ok) {
-          const t = await res.text().catch(() => "");
-          return NextResponse.json({ ok: false, error: `HTTP ${res.status}: ${t.slice(0, 150)}` }, { status: 502 });
+
+        // Step 2: verify the selected model with a tiny chat completion.
+        try {
+          const reply = await openaiChat({ baseUrl, apiKey, model, messages, maxTokens: 10 });
+          return NextResponse.json({ ok: true, keyOk: true, modelUsed: model, reply: reply.slice(0, 80), models: models ?? undefined });
+        } catch (e) {
+          const chatErr = e instanceof Error ? e.message : String(e);
+          if (models) {
+            const available = models.slice(0, 12).join(", ") || "(none listed)";
+            return NextResponse.json(
+              {
+                ok: false,
+                keyOk: true,
+                modelUsed: model,
+                models,
+                error: `Key accepted, but model "${model}" failed: ${chatErr}. Available models: ${available}`,
+              },
+              { status: 502 }
+            );
+          }
+          return NextResponse.json({ ok: false, keyOk: models !== null, modelUsed: model, error: chatErr }, { status: 502 });
         }
-        const data = await res.json();
-        reply = data?.content?.[0]?.text ?? "";
-      } else if (cfg.apiStyle === "cohere") {
-        const url = baseUrl.endsWith("/") ? `${baseUrl}chat` : `${baseUrl}/chat`;
-        const res = await fetch(url, {
-          method: "POST",
-          headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
-          body: JSON.stringify({ model, messages, max_tokens: 10 }),
-        });
-        if (!res.ok) {
-          const t = await res.text().catch(() => "");
-          return NextResponse.json({ ok: false, error: `HTTP ${res.status}: ${t.slice(0, 150)}` }, { status: 502 });
-        }
-        const data = await res.json();
-        reply = data?.message?.content?.[0]?.text ?? data?.text ?? "";
       }
-      return NextResponse.json({ ok: true, reply: reply.slice(0, 80) });
+
+      let reply = "";
+      if (cfg.apiStyle === "anthropic") {
+        reply = await anthropicChat({ baseUrl, apiKey, model, messages, maxTokens: 10 });
+      } else if (cfg.apiStyle === "cohere") {
+        reply = await cohereChat({ baseUrl, apiKey, model, messages, maxTokens: 10 });
+      }
+      return NextResponse.json({ ok: true, keyOk: true, modelUsed: model, reply: reply.slice(0, 80) });
     } catch (e) {
-      return NextResponse.json({ ok: false, error: String(e) }, { status: 502 });
+      return NextResponse.json({ ok: false, error: String(e instanceof Error ? e.message : e) }, { status: 502 });
     }
   } catch (e) {
-    return NextResponse.json({ ok: false, error: String(e) }, { status: 500 });
+    return NextResponse.json({ ok: false, error: String(e instanceof Error ? e.message : e) }, { status: 500 });
   }
 }

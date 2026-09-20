@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Save, FolderOpen, Trash2, X, Layers } from "lucide-react";
 import { useWindowStore } from "@/lib/window-store";
@@ -12,6 +12,15 @@ export function WorkspaceManager({ open, onClose }: { open: boolean; onClose: ()
   const deleteWorkspace = useWindowStore((s) => s.deleteWorkspace);
   const windows = useWindowStore((s) => s.windows);
   const [name, setName] = useState("");
+
+  useEffect(() => {
+    if (!open) return;
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose();
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open, onClose]);
 
   function save() {
     if (!name.trim() || windows.length === 0) return;
@@ -33,7 +42,7 @@ export function WorkspaceManager({ open, onClose }: { open: boolean; onClose: ()
             <div className="flex items-center gap-2 px-4 py-3 border-b border-white/10">
               <Layers className="w-4 h-4 text-cyan-400" />
               <span className="text-sm font-medium text-white">Workspaces</span>
-              <button onClick={onClose} className="ml-auto text-white/40 hover:text-white">
+              <button onClick={onClose} title="Close" aria-label="Close" className="ml-auto text-white/40 hover:text-white">
                 <X className="w-4 h-4" />
               </button>
             </div>
@@ -72,7 +81,7 @@ export function WorkspaceManager({ open, onClose }: { open: boolean; onClose: ()
                 ) : (
                   <div className="space-y-1.5 max-h-[280px] overflow-y-auto thin-scroll">
                     {workspaces.map((ws) => (
-                      <div key={ws.id} className="flex items-center gap-2 bg-black/30 border border-white/8 rounded-lg px-3 py-2 hover:bg-black/50 transition">
+                      <div key={ws.id} title={ws.windows.map((w) => w.type).join(", ") || "empty"} className="flex items-center gap-2 bg-black/30 border border-white/8 rounded-lg px-3 py-2 hover:bg-black/50 transition">
                         <FolderOpen className="w-3 h-3 text-cyan-400" />
                         <div className="flex-1 min-w-0">
                           <div className="text-xs text-white truncate">{ws.name}</div>
@@ -84,7 +93,7 @@ export function WorkspaceManager({ open, onClose }: { open: boolean; onClose: ()
                           className="text-[10px] px-2 py-0.5 rounded bg-emerald-500/20 border border-emerald-400/30 text-emerald-300 hover:bg-emerald-500/30">
                           Load
                         </button>
-                        <button onClick={() => deleteWorkspace(ws.id)} className="text-white/40 hover:text-rose-400">
+                        <button onClick={() => deleteWorkspace(ws.id)} title="Delete workspace" className="text-white/40 hover:text-rose-400">
                           <Trash2 className="w-3 h-3" />
                         </button>
                       </div>

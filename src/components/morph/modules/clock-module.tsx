@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useSettings } from "@/lib/settings-store";
+import { useModulePersist } from "@/lib/module-state-store";
 
 const ZONES = [
   { city: "Paris", tz: "Europe/Paris", color: "#22d3ee" },
@@ -10,9 +12,19 @@ const ZONES = [
 ];
 
 export function ClockModule() {
+  const language = useSettings((s) => s.language);
+  const locale = language === "fr" ? "fr-FR" : "en-US";
   const [now, setNow] = useState(new Date());
+  const [copied, setCopied] = useState(false);
+  const [h24, setH24] = useModulePersist<boolean>("clock:h24", true);
+  const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  function copyIso() {
+    navigator.clipboard?.writeText(now.toISOString());
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1200);
+  }
   useEffect(() => {
-    const id = setInterval(() => setNow(new Date()), 1000);
+    const id = setInterval(() => { if (!document.hidden) setNow(new Date()); }, 1000);
     return () => clearInterval(id);
   }, []);
 
@@ -21,7 +33,7 @@ export function ClockModule() {
   const hr = now.getHours();
 
   return (
-    <div className="flex h-full p-4 gap-4 items-center">
+    <div className="flex h-full p-4 gap-4 items-center overflow-y-auto thin-scroll">
       {/* Analog clock */}
       <div className="relative w-32 h-32 shrink-0">
         <svg viewBox="0 0 100 100" className="w-full h-full">
@@ -62,13 +74,21 @@ export function ClockModule() {
       </div>
 
       {/* Digital + world clocks */}
-      <div className="flex-1 space-y-2">
-        <div className="font-mono text-3xl text-white tabular-nums">
-          {String(hr).padStart(2, "0")}:{String(min).padStart(2, "0")}
+      <div className="flex-1 min-w-0 space-y-2">
+        <button onClick={copyIso} title={copied ? "✓" : now.toISOString()} className="font-mono text-3xl text-white tabular-nums text-left hover:text-cyan-200 transition">
+          {h24 ? String(hr).padStart(2, "0") : String(hr % 12 || 12)}:{String(min).padStart(2, "0")}
           <span className="text-cyan-400 text-lg">:{String(sec).padStart(2, "0")}</span>
-        </div>
+          {!h24 && <span className="text-white/50 text-sm ml-1">{hr >= 12 ? "PM" : "AM"}</span>}
+          {copied && <span className="text-emerald-400 text-sm ml-2">✓</span>}
+        </button>
         <div className="text-[10px] text-white/40">
-          {now.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" })}
+          {now.toLocaleDateString(locale, { weekday: "long", day: "numeric", month: "long" })}
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="text-[9px] text-white/30 font-mono">{timeZone}</div>
+          <button onClick={() => setH24(!h24)} title="12/24h" className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-white/5 text-white/50 hover:text-white">
+            {h24 ? "24H" : "12H"}
+          </button>
         </div>
         <div className="space-y-1 pt-1 border-t border-white/8">
           {ZONES.map((z) => (
@@ -78,7 +98,7 @@ export function ClockModule() {
                 <span className="text-white/60">{z.city}</span>
               </span>
               <span className="font-mono text-white/80 tabular-nums">
-                {now.toLocaleTimeString("fr-FR", {
+                {now.toLocaleTimeString(locale, {
                   hour: "2-digit",
                   minute: "2-digit",
                   timeZone: z.tz,

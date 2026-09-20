@@ -1,7 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Cloud, CloudRain, Sun, Wind, Droplets, MapPin, Snowflake, CloudDrizzle, Loader2, AlertCircle } from "lucide-react";
+import { Cloud, CloudRain, Sun, Wind, Droplets, MapPin, Snowflake, CloudDrizzle, Loader2, AlertCircle, Navigation } from "lucide-react";
+import { useT } from "@/lib/use-t";
+import { useSettings } from "@/lib/settings-store";
+import { useModulePersist } from "@/lib/module-state-store";
 
 const CITIES = [
   { name: "Paris", lat: 48.85, lon: 2.35 },
@@ -34,15 +37,53 @@ function codeToInfo(code: number): { icon: React.ElementType; label: string; col
   return { icon: Cloud, label: "Unknown", color: "#94a3b8" };
 }
 
+interface GeoCity { name: string; lat: number; lon: number; }
+
 export function WeatherModule() {
-  const [activeIdx, setActiveIdx] = useState(0);
+  const t = useT();
+  const fr = useSettings((s) => s.language) === "fr";
+  const [activeIdx, setActiveIdx] = useModulePersist<number>("weather:city", 0);
+  const [geo, setGeo] = useModulePersist<GeoCity | null>("weather:geo", null);
+  const [locating, setLocating] = useState(false);
+  const [geoError, setGeoError] = useState<string | null>(null);
+
+  function locate() {
+    if (!navigator.geolocation) {
+      setGeoError(fr ? "Géolocalisation non supportée." : "Geolocation not supported.");
+      return;
+    }
+    setLocating(true);
+    setGeoError(null);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setLocating(false);
+        setGeo({
+          name: fr ? "Ma position" : "My location",
+          lat: Math.round(pos.coords.latitude * 100) / 100,
+          lon: Math.round(pos.coords.longitude * 100) / 100,
+        });
+        setActiveIdx(CITIES.length);
+      },
+      (err) => {
+        setLocating(false);
+        setGeoError(
+          err.code === err.PERMISSION_DENIED
+            ? (fr ? "Position refusée." : "Location denied.")
+            : (fr ? "Position indisponible." : "Location unavailable.")
+        );
+      },
+      { timeout: 10000 }
+    );
+  }
   const [data, setData] = useState<WeatherData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [retryTick, setRetryTick] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
-    const city = CITIES[activeIdx];
+    const list = geo ? [...CITIES, geo] : CITIES;
+    const city = list[activeIdx] ?? CITIES[0];
 
     async function load() {
       try {
@@ -75,21 +116,31 @@ export function WeatherModule() {
       load();
     });
     return () => { cancelled = true; };
-  }, [activeIdx]);
+  }, [activeIdx, retryTick, geo]);
 
-  const city = CITIES[activeIdx];
+  const cities = geo ? [...CITIES, geo] : CITIES;
+  const city = cities[activeIdx] ?? CITIES[0];
   const info = data ? codeToInfo(data.weatherCode) : { icon: Cloud, label: "", color: "#94a3b8" };
   const Icon = info.icon;
 
   return (
-    <div className="flex flex-col h-full p-4 gap-3">
-      <div className="flex gap-1 flex-wrap">
-        {CITIES.map((c, i) => (
+    <div className="flex flex-col h-full p-4 gap-3 overflow-y-auto thin-scroll">
+      <div className="flex gap-1 flex-wrap items-center">
+        <button
+          onClick={locate}
+          title={fr ? "Utiliser ma position" : "Use my location"}
+          className="text-[10px] px-2 py-0.5 rounded flex items-center gap-1 bg-emerald-500/15 border border-emerald-400/30 text-emerald-300 hover:bg-emerald-500/25"
+        >
+          {locating ? <Loader2 className="w-2.5 h-2.5 animate-spin" /> : <Navigation className="w-2.5 h-2.5" />}
+          GPS
+        </button>
+        {geoError && <span className="text-[9px] text-amber-400/80">{geoError}</span>}
+        {cities.map((c, i) => (
           <button
             key={c.name}
             onClick={() => setActiveIdx(i)}
             className={`text-[10px] px-2 py-0.5 rounded flex items-center gap-1 ${
-              i === active ? "bg-cyan-500/20 text-cyan-300 border border-cyan-400/30" : "text-white/50 hover:text-white/80"
+              i === activeIdx ? "bg-cyan-500/20 text-cyan-300 border border-cyan-400/30" : "text-white/50 hover:text-white/80"
             }`}
           >
             <MapPin className="w-2.5 h-2.5" />
@@ -109,6 +160,12 @@ export function WeatherModule() {
           <AlertCircle className="w-6 h-6" />
           <div>Failed to load weather</div>
           <div className="text-[9px] text-white/40">{error}</div>
+          <button
+            onClick={() => { setError(null); setLoading(true); setRetryTick((n) => n + 1); }}
+            className="text-[11px] px-3 py-1 rounded-md bg-white/5 border border-white/10 text-white/70 hover:bg-white/10 hover:text-white"
+          >
+            ↻ {t("common.retry")}
+          </button>
         </div>
       )}
 
@@ -118,7 +175,7 @@ export function WeatherModule() {
             <Icon className="w-16 h-16 mb-2 float-slow" style={{ color: info.color }} />
             <div className="text-5xl font-thin text-white">{data.temp}°</div>
             <div className="text-sm text-white/60 mt-1">{info.label}</div>
-            <div className="text-[10px] text-white/40 mt-1">{city.name} · {new Date().toLocaleTimeString("en", { hour: "2-digit", minute: "2-digit" })}</div>
+            <div className="text-[10px] text-white/40 mt-1">{city.name} · {new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</div>
           </div>
 
           <div className="grid grid-cols-3 gap-2 text-[10px]">
@@ -139,7 +196,8 @@ export function WeatherModule() {
             </div>
           </div>
 
-          <div className="grid grid-cols-6 gap-1 text-center">
+          <div className="overflow-x-auto thin-scroll">
+          <div className="grid grid-cols-6 gap-1 text-center min-w-[300px]">
             {data.hourly.map((h, i) => {
               const dt = new Date(h.time);
               return (
@@ -149,6 +207,7 @@ export function WeatherModule() {
                 </div>
               );
             })}
+          </div>
           </div>
         </>
       )}

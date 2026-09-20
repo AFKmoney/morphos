@@ -1,7 +1,7 @@
 "use client";
 
 import { registerPlugin } from "@/lib/plugins/plugin-registry";
-import type { MorphOSPlugin } from "@/lib/plugins/plugin-types";
+import type { MorphOSPlugin, PluginContext, PluginManifest, PluginRuntime } from "@/lib/plugins/plugin-types";
 import { Sparkles } from "lucide-react";
 import { useState } from "react";
 
@@ -100,7 +100,7 @@ function HelloWorldSettings({
 }
 
 // Manifest du plugin
-const examplePluginManifest = {
+const examplePluginManifest: PluginManifest = {
   id: "@morphos/example-plugin",
   name: "Example Plugin",
   description: "A demonstration plugin showing the basics of MorphOS plugin development",
@@ -117,11 +117,11 @@ const examplePluginManifest = {
 };
 
 // Runtime du plugin
-const examplePluginRuntime = {
+const examplePluginRuntime: PluginRuntime = {
   component: HelloWorldPlugin,
   settingsComponent: HelloWorldSettings,
 
-  onLoad: (context) => {
+  onLoad: (context: PluginContext) => {
     console.log(`[ExamplePlugin] Loaded! Plugin ID: ${context.pluginId}`);
     console.log(`[ExamplePlugin] Settings:`, context.settings);
 
@@ -138,7 +138,7 @@ const examplePluginRuntime = {
     console.log(`[ExamplePlugin] Unloaded!`);
   },
 
-  onSettingsChange: (newSettings) => {
+  onSettingsChange: (newSettings: Record<string, unknown>) => {
     console.log(`[ExamplePlugin] Settings changed:`, newSettings);
   },
 

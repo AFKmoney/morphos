@@ -28,7 +28,7 @@ function loadBabelFromCDN(): Promise<any> {
   return babelLoadPromise;
 }
 
-async function transformCodeAsync(code: string): Promise<{ js: string; error: string | null }> {
+export async function transformCodeAsync(code: string): Promise<{ js: string; error: string | null }> {
   try {
     const Babel = await loadBabelFromCDN();
     const result = Babel.transform(code, {

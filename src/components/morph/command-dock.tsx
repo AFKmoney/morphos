@@ -3,47 +3,15 @@
 import { useRef, useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useWindowStore } from "@/lib/window-store";
-import { getModuleMeta } from "./module-registry";
-import { Sparkles, Send, X, Layers, Zap, Hexagon, ChevronUp, Mic, MicOff } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { getModuleMeta, getDefaultModuleSize as getDefaultSize } from "./module-registry";
+import { Sparkles, Send, Square, ArrowDown, X, Layers, Zap, ChevronUp, Mic, MicOff } from "lucide-react";
+import { cn, fetchJson } from "@/lib/utils";
 import { useT } from "@/lib/use-t";
 import { useSettings, buildProviderPayload } from "@/lib/settings-store";
 import { useAIContext } from "@/lib/ai-context-store";
 import { useVoiceInput } from "@/lib/use-voice-input";
 
-const MODULE_SIZES: Record<string, { width: number; height: number }> = {
-  chat: { width: 460, height: 560 },
-  monitor: { width: 540, height: 420 },
-  dashboard: { width: 720, height: 480 },
-  terminal: { width: 600, height: 380 },
-  kanban: { width: 680, height: 460 },
-  notes: { width: 480, height: 460 },
-  code: { width: 680, height: 480 },
-  weather: { width: 380, height: 460 },
-  clock: { width: 360, height: 240 },
-  music: { width: 420, height: 480 },
-  calculator: { width: 320, height: 440 },
-  stock: { width: 540, height: 380 },
-  camera: { width: 480, height: 420 },
-  metrics: { width: 560, height: 380 },
-  pomodoro: { width: 320, height: 420 },
-  paint: { width: 580, height: 480 },
-  regex: { width: 540, height: 520 },
-  json: { width: 560, height: 440 },
-  colorpicker: { width: 380, height: 540 },
-  qr: { width: 360, height: 480 },
-  devtools: { width: 480, height: 540 },
-  files: { width: 580, height: 460 },
-  browser: { width: 720, height: 560 },
-  calendar: { width: 380, height: 480 },
-  whiteboard: { width: 580, height: 480 },
-  custom: { width: 460, height: 420 },
-  imagegen: { width: 420, height: 560 },
-};
 
-function getDefaultSize(type: string) {
-  return MODULE_SIZES[type] ?? { width: 480, height: 400 };
-}
 
 // Top bar height — windows can't go above this
 export const TOP_BAR_HEIGHT = 48;
@@ -67,6 +35,8 @@ export function CommandDock() {
 
   const [input, setInput] = useState("");
   const taRef = useRef<HTMLTextAreaElement>(null);
+  const abortRef = useRef<AbortController | null>(null);
+  const readerRef = useRef<ReadableStreamDefaultReader<Uint8Array> | null>(null);
 
   // Voice input
   const { listening, supported: voiceSupported, toggle: toggleVoice } = useVoiceInput((text) => {
@@ -119,16 +89,20 @@ export function CommandDock() {
     if (taRef.current) taRef.current.style.height = "auto";
     addChatMessage({ role: "user", content: text });
     setInterpreting(true);
+    abortRef.current = new AbortController();
+    const signal = abortRef.current.signal;
 
     try {
       const history = chatMessages
         .filter((m) => m.role !== "system")
+        .slice(-20)
         .map((m) => ({ role: m.role, content: m.content }));
 
       // Use streaming SSE endpoint
       const res = await fetch("/api/interpret-stream", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        signal,
         body: JSON.stringify({
           prompt: text,
           history,
@@ -143,14 +117,23 @@ export function CommandDock() {
       });
 
       if (!res.ok) {
-        const errData = await res.json().catch(() => ({}));
-        addChatMessage({ role: "assistant", content: `⚠️ ${errData.error || "Request failed"}` });
+        const errText = await res.text().catch(() => "");
+        let errMsg = "Request failed";
+        try {
+          const parsed = JSON.parse(errText);
+          if (parsed?.error) errMsg = String(parsed.error);
+        } catch {
+          if (/^\s*</.test(errText)) errMsg = `API server returned an HTML page (HTTP ${res.status}) — the MorphOS backend is down or outdated.`;
+          else if (errText.trim()) errMsg = errText.trim().slice(0, 300);
+        }
+        addChatMessage({ role: "assistant", content: `⚠️ ${errMsg}` });
         setInterpreting(false);
         return;
       }
 
       // Read SSE stream
       const reader = res.body?.getReader();
+      readerRef.current = reader ?? null;
       const decoder = new TextDecoder();
       let streamedText = "";
       let finalData: any = null;
@@ -210,14 +193,15 @@ export function CommandDock() {
           moduleType: data.moduleType,
         });
         await new Promise((r) => setTimeout(r, 1600));
+        if (signal.aborted) { hideSpawnPreview(); return; }
 
         try {
-          const genRes = await fetch("/api/generate-module", {
+          const genData = await fetchJson("/api/generate-module", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ prompt: data.prompt, provider: buildProviderPayload() }),
+            body: JSON.stringify({ prompt: data.prompt.slice(0, 2000), provider: buildProviderPayload() }),
+            signal,
           });
-          const genData = await genRes.json();
           if (genData.code) {
             customCode = genData.code;
             displayTitle = genData.title || data.title;
@@ -236,9 +220,11 @@ export function CommandDock() {
           moduleType: data.moduleType,
         });
         await new Promise((r) => setTimeout(r, 1200));
+        if (signal.aborted) { hideSpawnPreview(); return; }
       } else {
         showSpawnPreview({ code: data.codePreview, title: data.title, moduleType: data.moduleType });
         await new Promise((r) => setTimeout(r, 1600));
+        if (signal.aborted) { hideSpawnPreview(); return; }
         addChatMessage({ role: "assistant", content: data.aiMessage });
       }
 
@@ -266,11 +252,18 @@ export function CommandDock() {
       addRecentModule(data.moduleType);
       hideSpawnPreview();
     } catch (e) {
-      addChatMessage({ role: "assistant", content: t("chat.fail") });
+      addChatMessage({ role: "assistant", content: signal.aborted ? t("chat.stopped") : t("chat.fail") });
       hideSpawnPreview();
     } finally {
+      abortRef.current = null;
+      readerRef.current = null;
       setInterpreting(false);
     }
+  }
+
+  function stop() {
+    readerRef.current?.cancel().catch(() => {});
+    abortRef.current?.abort();
   }
 
   function onKeyDown(e: React.KeyboardEvent) {
@@ -326,13 +319,14 @@ export function CommandDock() {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 20, scale: 0.95 }}
             transition={{ type: "spring", stiffness: 280, damping: 24 }}
-            className="fixed bottom-[84px] left-1/2 -translate-x-1/2 z-50 glass-panel-strong rounded-xl overflow-hidden w-[440px] max-w-[94vw] h-[420px] flex flex-col"
+            className="fixed bottom-[84px] left-1/2 -translate-x-1/2 z-50 glass-panel-strong rounded-xl overflow-hidden w-[440px] max-w-[94vw] h-[min(420px,calc(100vh-180px))] flex flex-col"
           >
             <div className="flex items-center gap-2 px-3 py-2 border-b border-white/10 bg-black/40">
               <Sparkles className="w-3 h-3 text-cyan-400" />
               <span className="text-xs font-mono text-cyan-300">{t("app.title")} console</span>
               <button
                 onClick={() => setShowPanel(false)}
+                title={t("common.close")}
                 className="ml-auto text-white/40 hover:text-white"
               >
                 <X className="w-3 h-3" />
@@ -413,18 +407,24 @@ export function CommandDock() {
                 </button>
               )}
               <button
-                onClick={send}
-                disabled={!input.trim() || isInterpreting}
-                className="w-9 h-9 rounded-full bg-gradient-to-br from-cyan-400 to-emerald-400 text-black flex items-center justify-center shrink-0 disabled:opacity-30 disabled:cursor-not-allowed hover:brightness-110 active:scale-95 transition"
+                onClick={isInterpreting ? stop : send}
+                title={isInterpreting ? t("chat.stop") : t("dock.send")}
+                disabled={!isInterpreting && !input.trim()}
+                className={cn(
+                  "w-9 h-9 rounded-full text-black flex items-center justify-center shrink-0 disabled:opacity-30 disabled:cursor-not-allowed hover:brightness-110 active:scale-95 transition",
+                  isInterpreting
+                    ? "bg-gradient-to-br from-rose-400 to-orange-400"
+                    : "bg-gradient-to-br from-cyan-400 to-emerald-400"
+                )}
               >
                 {isInterpreting ? (
-                  <Hexagon className="w-4 h-4 animate-spin" />
+                  <Square className="w-3.5 h-3.5" fill="currentColor" />
                 ) : (
                   <Send className="w-3.5 h-3.5" />
                 )}
               </button>
             </div>
-            <div className="flex items-center gap-3 text-[9px] text-white/30">
+            <div className="flex items-center gap-3 text-[9px] text-white/40">
               <span className="flex items-center gap-1">
                 <Zap className="w-2 h-2 text-cyan-400" />
                 {t("dock.hotreload")}
@@ -448,18 +448,36 @@ function ChatHistory() {
   const isInterpreting = useWindowStore((s) => s.isInterpreting);
   const t = useT();
   const scrollRef = useRef<HTMLDivElement>(null);
+  const stick = useRef(true);
+  const [showJump, setShowJump] = useState(false);
 
   useEffect(() => {
-    if (scrollRef.current) {
+    if (stick.current && scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [chatMessages.length, isInterpreting]);
 
+  function onScroll() {
+    const el = scrollRef.current;
+    if (!el) return;
+    const dist = el.scrollHeight - el.scrollTop - el.clientHeight;
+    stick.current = dist < 60;
+    setShowJump(dist > 120);
+  }
+
+  function jump() {
+    stick.current = true;
+    setShowJump(false);
+    scrollRef.current?.scrollTo({ top: 999999, behavior: "smooth" });
+  }
+
   return (
-    <div ref={scrollRef} className="flex-1 overflow-y-auto p-3 space-y-3 thin-scroll">
+    <div className="relative flex-1 min-h-0 flex flex-col">
+    <div ref={scrollRef} onScroll={onScroll} className="flex-1 min-h-0 overflow-y-auto p-3 space-y-3 thin-scroll">
       {chatMessages.map((m) => (
         <div key={m.id} className={cn("flex", m.role === "user" ? "justify-end" : "justify-start")}>
           <div
+            title={new Date(m.ts).toLocaleString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
             className={cn(
               "max-w-[88%] rounded-xl px-3 py-2 text-xs leading-relaxed",
               m.role === "user"
@@ -482,6 +500,16 @@ function ChatHistory() {
           <span className="shimmer-text">{t("dock.interpreting")}</span>
         </div>
       )}
+    </div>
+    {showJump && (
+      <button
+        onClick={jump}
+        title={t("chat.jumpToLatest")}
+        className="absolute bottom-3 right-3 z-10 w-8 h-8 rounded-full glass-panel-strong border border-cyan-400/30 text-cyan-300 flex items-center justify-center hover:bg-cyan-500/20"
+      >
+        <ArrowDown className="w-4 h-4" />
+      </button>
+    )}
     </div>
   );
 }

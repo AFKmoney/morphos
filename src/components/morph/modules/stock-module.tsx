@@ -2,6 +2,8 @@
 
 import { useEffect, useState, useRef } from "react";
 import { TrendingUp, TrendingDown, Loader2, AlertCircle } from "lucide-react";
+import { useT } from "@/lib/use-t";
+import { useModulePersist } from "@/lib/module-state-store";
 
 // Real crypto symbols via CoinGecko (free, no API key)
 const SYMBOLS = [
@@ -22,10 +24,14 @@ interface Quote {
 }
 
 export function StockModule() {
+  const t = useT();
   const [quotes, setQuotes] = useState<Quote[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const historyRef = useRef<Record<string, number[]>>({});
+  const [retryTick, setRetryTick] = useState(0);
+  const [fetchedAt, setFetchedAt] = useState<number | null>(null);
+  const [histStore, setHistStore] = useModulePersist<Record<string, number[]>>("stock:history", {});
+  const historyRef = useRef<Record<string, number[]>>(histStore);
 
   useEffect(() => {
     let active = true;
@@ -50,6 +56,8 @@ export function StockModule() {
 
         if (active) {
           setQuotes(newQuotes);
+          setHistStore({ ...historyRef.current });
+          setFetchedAt(Date.now());
           setLoading(false);
           setError(null);
         }
@@ -62,9 +70,9 @@ export function StockModule() {
     }
 
     fetchPrices();
-    const id = setInterval(fetchPrices, 15000);
+    const id = setInterval(() => { if (!document.hidden) fetchPrices(); }, 15000);
     return () => { active = false; clearInterval(id); };
-  }, []);
+  }, [retryTick]);
 
   if (loading) {
     return (
@@ -80,6 +88,12 @@ export function StockModule() {
         <AlertCircle className="w-6 h-6" />
         <div>Failed to load prices</div>
         <div className="text-[9px] text-white/40">{error}</div>
+        <button
+          onClick={() => { setError(null); setLoading(true); setRetryTick((n) => n + 1); }}
+          className="text-[11px] px-3 py-1 rounded-md bg-white/5 border border-white/10 text-white/70 hover:bg-white/10 hover:text-white"
+        >
+          ↻ {t("common.retry")}
+        </button>
       </div>
     );
   }
@@ -91,10 +105,10 @@ export function StockModule() {
           <span className="w-1 h-1 rounded-full bg-emerald-400 live-dot" />
           CoinGecko · live
         </span>
-        <span className="font-mono">{new Date().toLocaleTimeString("en")}</span>
+        <span className="font-mono" title={fetchedAt ? new Date(fetchedAt).toLocaleString([]) : undefined}>{fetchedAt ? new Date(fetchedAt).toLocaleTimeString([]) : "—"}</span>
       </div>
       {error && <div className="text-[9px] text-amber-400/60">Reconnecting…</div>}
-      <div className="flex-1 space-y-1 overflow-y-auto thin-scroll">
+      <div className="flex-1 min-h-0 space-y-1 overflow-y-auto thin-scroll">
         {quotes.map((q) => {
           const up = q.change24h >= 0;
           return (
@@ -108,7 +122,7 @@ export function StockModule() {
               </div>
               <div className="text-right">
                 <div className="font-mono text-sm text-white tabular-nums">
-                  ${q.price < 1 ? q.price.toFixed(4) : q.price.toLocaleString("en", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  ${q.price < 1 ? q.price.toFixed(4) : q.price.toLocaleString([], { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </div>
                 <div className={`text-[10px] flex items-center justify-end gap-0.5 ${up ? "text-emerald-400" : "text-rose-400"}`}>
                   {up ? <TrendingUp className="w-2.5 h-2.5" /> : <TrendingDown className="w-2.5 h-2.5" />}

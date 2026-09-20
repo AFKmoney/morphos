@@ -1,15 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
+import pkg from "../../../package.json";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   X, Key, Globe, Palette, Info, Check, AlertCircle, Loader2,
-  ExternalLink, Server, Cpu, Sparkles, RotateCcw, Zap, Shield,
+  ExternalLink, Server, Cpu, Sparkles, RotateCcw, Zap, Shield, Copy, Eye, EyeOff,
 } from "lucide-react";
 import { useSettings, ACCENT_COLORS, type AccentTheme } from "@/lib/settings-store";
 import { PROVIDER_LIST, PROVIDERS, type ProviderId } from "@/lib/providers";
 import { useT } from "@/lib/use-t";
-import { cn } from "@/lib/utils";
+import { cn, fetchJson } from "@/lib/utils";
 
 type Tab = "provider" | "appearance" | "about";
 
@@ -18,6 +19,15 @@ export function SettingsPanel() {
   const close = useSettings((s) => s.closeSettings);
   const t = useT();
   const [tab, setTab] = useState<Tab>("provider");
+
+  useEffect(() => {
+    if (!open) return;
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") close();
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open, close]);
 
   return (
     <AnimatePresence>
@@ -48,6 +58,8 @@ export function SettingsPanel() {
               </div>
               <button
                 onClick={close}
+                title={t("common.close")}
+                aria-label={t("settings.close")}
                 className="w-8 h-8 rounded-md text-white/40 hover:text-white hover:bg-white/5 flex items-center justify-center"
               >
                 <X className="w-4 h-4" />
@@ -62,7 +74,7 @@ export function SettingsPanel() {
             </div>
 
             {/* Content */}
-            <div className="flex-1 overflow-y-auto thin-scroll p-5">
+            <div className="flex-1 min-h-0 overflow-y-auto thin-scroll p-5">
               {tab === "provider" && <ProviderTab />}
               {tab === "appearance" && <AppearanceTab />}
               {tab === "about" && <AboutTab />}
@@ -102,52 +114,89 @@ function ProviderTab() {
   const apiKeys = useSettings((s) => s.apiKeys);
   const baseUrls = useSettings((s) => s.baseUrls);
   const models = useSettings((s) => s.models);
+  const testedAt = useSettings((s) => s.testedAt);
   const setProvider = useSettings((s) => s.setProvider);
   const setApiKey = useSettings((s) => s.setApiKey);
   const setBaseUrl = useSettings((s) => s.setBaseUrl);
   const setModel = useSettings((s) => s.setModel);
+  const setTested = useSettings((s) => s.setTested);
 
   const cfg = PROVIDERS[providerId];
   const [testStatus, setTestStatus] = useState<"idle" | "testing" | "ok" | "fail">("idle");
   const [testMsg, setTestMsg] = useState("");
   const [customModel, setCustomModel] = useState("");
+  const [latencyMs, setLatencyMs] = useState<number | null>(null);
+  const [availModels, setAvailModels] = useState<string[]>([]);
+  const [copied, setCopied] = useState(false);
+  const [showKey, setShowKey] = useState(false);
+  const customRef = useRef<HTMLInputElement>(null);
+  const testSeq = useRef(0);
+  const [cooling, setCooling] = useState(false);
 
   const currentKey = apiKeys[providerId] ?? "";
   const currentBaseUrl = baseUrls[providerId] ?? cfg.baseUrl;
   const currentModel = models[providerId] ?? cfg.defaultModel;
 
   function changeProvider(id: ProviderId) {
+    testSeq.current++; // invalidate any in-flight test
     setProvider(id);
     setTestStatus("idle");
     setTestMsg("");
     setCustomModel("");
+    setAvailModels([]);
+    setLatencyMs(null);
+    setCopied(false);
   }
 
-  async function test() {
+  async function test(modelOverride?: string) {
+    if (testStatus === "testing" || cooling) return;
+    const seq = ++testSeq.current;
     setTestStatus("testing");
     setTestMsg("");
+    setLatencyMs(null);
+    const t0 = performance.now();
     try {
-      const res = await fetch("/api/test-provider", {
+      const data = await fetchJson("/api/test-provider", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           providerId,
           apiKey: currentKey,
           baseUrl: currentBaseUrl,
-          model: customModel || currentModel,
+          model: modelOverride ?? (customModel || currentModel),
         }),
       });
-      const data = await res.json();
+      if (seq !== testSeq.current) return; // stale response (provider switched) — ignore
+      setLatencyMs(Math.round(performance.now() - t0));
+      if (Array.isArray(data.models)) setAvailModels(data.models);
       if (data.ok) {
         setTestStatus("ok");
-        setTestMsg(data.reply || "OK");
+        setTested(providerId);
+        const n = Array.isArray(data.models) ? data.models.length : 0;
+        setTestMsg(
+          (data.reply || "OK") +
+            (data.modelUsed ? ` · via ${data.modelUsed}` : "") +
+            (n ? ` · ${n} models on endpoint` : "")
+        );
       } else {
         setTestStatus("fail");
         setTestMsg(data.error || "Failed");
       }
     } catch (e) {
+      if (seq !== testSeq.current) return;
+      setLatencyMs(Math.round(performance.now() - t0));
       setTestStatus("fail");
-      setTestMsg(String(e));
+      setTestMsg(e instanceof Error ? e.message : String(e));
+    }
+  }
+
+  async function copyError() {
+    try {
+      await navigator.clipboard.writeText(testMsg);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      /* clipboard unavailable */
     }
   }
 
@@ -191,8 +240,14 @@ function ProviderTab() {
                     <Check className="w-2.5 h-2.5 text-black" />
                   </div>
                 )}
-                {!selected && (p.requiresKey || p.keyOptional) && hasKey && (
-                  <div className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                {(p.requiresKey || p.keyOptional) && (hasKey || testedAt[p.id]) && (
+                  <div
+                    title={testedAt[p.id] ? t("settings.test.tested") : t("settings.test.keyOnly")}
+                    className={cn(
+                      "absolute bottom-1 right-1 w-1.5 h-1.5 rounded-full",
+                      testedAt[p.id] ? "bg-emerald-400" : "bg-amber-400"
+                    )}
+                  />
                 )}
               </button>
             );
@@ -221,8 +276,13 @@ function ProviderTab() {
             )}
           </div>
           <button
-            onClick={test}
-            disabled={testStatus === "testing"}
+            onClick={() => {
+              if (cooling) return;
+              test();
+              setCooling(true);
+              setTimeout(() => setCooling(false), 1500);
+            }}
+            disabled={testStatus === "testing" || cooling}
             className="text-[11px] px-2.5 py-1 rounded-md bg-cyan-500/20 border border-cyan-400/30 text-cyan-300 hover:bg-cyan-500/30 disabled:opacity-50 flex items-center gap-1"
           >
             {testStatus === "testing" ? (
@@ -237,15 +297,28 @@ function ProviderTab() {
         {(cfg.requiresKey || cfg.keyOptional) && (
           <Field label={cfg.keyOptional ? t("settings.apiKey.optional") : t("settings.apiKey")} icon={Key}>
             <input
-              type="password"
+              type={showKey ? "text" : "password"}
               value={currentKey}
               onChange={(e) => setApiKey(providerId, e.target.value)}
               placeholder={cfg.keyHint}
-              className="flex-1 bg-black/40 border border-white/10 rounded px-2.5 py-1.5 text-xs text-white outline-none focus:border-cyan-400/50 font-mono"
+              spellCheck={false}
+              className="flex-1 min-w-0 bg-black/40 border border-white/10 rounded px-2.5 py-1.5 text-xs text-white outline-none focus:border-cyan-400/50 font-mono"
             />
-            <span className={cn("text-[10px]", currentKey ? "text-emerald-400" : "text-white/40")}>
+            <button
+              onClick={() => setShowKey(!showKey)}
+              title={showKey ? t("settings.test.hideKey") : t("settings.test.showKey")}
+              className="text-white/40 hover:text-white p-1 shrink-0"
+            >
+              {showKey ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+            </button>
+            <span className={cn("text-[10px] shrink-0", currentKey ? "text-emerald-400" : "text-white/40")}>
               {currentKey ? t("settings.apiKey.set") : (cfg.keyOptional ? "optional" : t("settings.apiKey.unset"))}
             </span>
+            {currentKey && currentKey !== currentKey.trim() && (
+              <span className="text-[10px] text-amber-400 shrink-0" title={t("settings.test.trimmed")}>
+                ⚠ {t("settings.test.trimmedShort")}
+              </span>
+            )}
           </Field>
         )}
 
@@ -265,10 +338,20 @@ function ProviderTab() {
         {/* Model */}
         <Field label={t("settings.model")} icon={Cpu}>
           <select
-            value={currentModel === cfg.defaultModel ? "" : currentModel}
+            value={
+              currentModel === cfg.defaultModel
+                ? ""
+                : cfg.models.includes(currentModel)
+                  ? currentModel
+                  : "__current"
+            }
             onChange={(e) => {
-              if (e.target.value === "__custom") return;
+              if (e.target.value === "__custom" || e.target.value === "__current") {
+                customRef.current?.focus();
+                return;
+              }
               setModel(providerId, e.target.value || cfg.defaultModel);
+              setCustomModel("");
             }}
             className="bg-black/40 border border-white/10 rounded px-2.5 py-1.5 text-xs text-white outline-none focus:border-cyan-400/50"
           >
@@ -276,6 +359,9 @@ function ProviderTab() {
             {cfg.models.filter((m) => m !== cfg.defaultModel).map((m) => (
               <option key={m} value={m}>{m}</option>
             ))}
+            {!cfg.models.includes(currentModel) && currentModel !== cfg.defaultModel && (
+              <option value="__current">{currentModel} (current)</option>
+            )}
             <option value="__custom">Custom…</option>
           </select>
         </Field>
@@ -283,6 +369,7 @@ function ProviderTab() {
         {/* Custom model input */}
         <Field label={t("settings.model.custom")} icon={Cpu}>
           <input
+            ref={customRef}
             type="text"
             value={customModel}
             onChange={(e) => {
@@ -305,15 +392,57 @@ function ProviderTab() {
         {/* Test result */}
         {testStatus !== "idle" && (
           <div className={cn(
-            "text-[11px] px-2.5 py-1.5 rounded flex items-center gap-1.5",
+            "text-[11px] px-2.5 py-1.5 rounded flex items-start gap-1.5",
             testStatus === "ok" && "bg-emerald-500/15 text-emerald-300 border border-emerald-400/30",
             testStatus === "fail" && "bg-rose-500/15 text-rose-300 border border-rose-400/30",
             testStatus === "testing" && "bg-cyan-500/15 text-cyan-300 border border-cyan-400/30"
           )}>
-            {testStatus === "ok" && <Check className="w-3 h-3" />}
-            {testStatus === "fail" && <AlertCircle className="w-3 h-3" />}
-            {testStatus === "testing" && <Loader2 className="w-3 h-3 animate-spin" />}
-            <span className="font-mono truncate flex-1">{testMsg || (testStatus === "ok" ? t("settings.apiKey.ok") : t("settings.apiKey.fail"))}</span>
+            <span className="mt-0.5 shrink-0">
+              {testStatus === "ok" && <Check className="w-3 h-3" />}
+              {testStatus === "fail" && <AlertCircle className="w-3 h-3" />}
+              {testStatus === "testing" && <Loader2 className="w-3 h-3 animate-spin" />}
+            </span>
+            <span className="font-mono flex-1 min-h-0 whitespace-pre-wrap break-words max-h-28 overflow-y-auto thin-scroll">
+              {testMsg || (testStatus === "ok" ? t("settings.apiKey.ok") : testStatus === "fail" ? t("settings.apiKey.fail") : t("settings.apiKey.testing"))}
+              {latencyMs !== null && testStatus !== "testing" && (
+                <span className="opacity-70"> · {latencyMs}ms</span>
+              )}
+            </span>
+            {testStatus === "fail" && testMsg && (
+              <button
+                onClick={copyError}
+                title={t("settings.test.copy")}
+                className="shrink-0 text-white/50 hover:text-white p-0.5"
+              >
+                {copied ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* Live models from the endpoint — click one to apply it and retest */}
+        {availModels.length > 0 && (
+          <div>
+            <div className="text-[10px] uppercase tracking-wider text-white/40 mb-1">
+              {t("settings.test.availableModels")}
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {availModels.slice(0, 12).map((m) => (
+                <button
+                  key={m}
+                  onClick={() => {
+                    setModel(providerId, m);
+                    setCustomModel(m);
+                    test(m);
+                  }}
+                  disabled={testStatus === "testing"}
+                  title={m}
+                  className="text-[10px] font-mono px-2 py-1 rounded-md bg-cyan-500/10 border border-cyan-400/25 text-cyan-200 hover:bg-cyan-500/25 disabled:opacity-50 max-w-full truncate"
+                >
+                  {m}
+                </button>
+              ))}
+            </div>
           </div>
         )}
       </div>
@@ -349,6 +478,15 @@ function AppearanceTab() {
   const setBoot = useSettings((s) => s.setBoot);
   const resetAll = useSettings((s) => s.resetAll);
   const factoryReset = useSettings((s) => s.factoryReset);
+  // Two-step inline confirmation - no blocking native dialogs
+  const [armReset, setArmReset] = useState(false);
+  const [armFactory, setArmFactory] = useState(false);
+  const armTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  function arm(setter: (v: boolean) => void) {
+    setter(true);
+    if (armTimer.current) clearTimeout(armTimer.current);
+    armTimer.current = setTimeout(() => { setArmReset(false); setArmFactory(false); }, 3500);
+  }
 
   return (
     <div className="space-y-5">
@@ -430,23 +568,31 @@ function AppearanceTab() {
         <div className="flex gap-2">
           <button
             onClick={() => {
-              if (confirm(t("settings.reset.confirm"))) resetAll();
+              if (armReset) { resetAll(); setArmReset(false); }
+              else arm(setArmReset);
             }}
-            className="text-xs px-3 py-1.5 rounded-md bg-rose-500/15 border border-rose-400/30 text-rose-300 hover:bg-rose-500/25 flex items-center gap-1.5"
+            className={`text-xs px-3 py-1.5 rounded-md border flex items-center gap-1.5 ${
+              armReset
+                ? "bg-rose-500/40 border-rose-300/60 text-white"
+                : "bg-rose-500/15 border-rose-400/30 text-rose-300 hover:bg-rose-500/25"
+            }`}
           >
             <RotateCcw className="w-3 h-3" />
-            {t("settings.reset")}
+            {armReset ? t("common.confirm") : t("settings.reset")}
           </button>
           <button
             onClick={() => {
-              if (confirm("Factory reset? This will clear all windows, chat history, workspaces, and module states — but KEEP your API keys and provider settings.")) {
-                factoryReset();
-              }
+              if (armFactory) { factoryReset(); setArmFactory(false); }
+              else arm(setArmFactory);
             }}
-            className="text-xs px-3 py-1.5 rounded-md bg-amber-500/15 border border-amber-400/30 text-amber-300 hover:bg-amber-500/25 flex items-center gap-1.5"
+            className={`text-xs px-3 py-1.5 rounded-md border flex items-center gap-1.5 ${
+              armFactory
+                ? "bg-amber-500/40 border-amber-300/60 text-white"
+                : "bg-amber-500/15 border-amber-400/30 text-amber-300 hover:bg-amber-500/25"
+            }`}
           >
             <Shield className="w-3 h-3" />
-            Factory Reset (keep API keys)
+            {armFactory ? t("common.confirm") : "Factory Reset (keep API keys)"}
           </button>
         </div>
         <div className="text-[9px] text-white/30 leading-relaxed">
@@ -463,6 +609,9 @@ function Toggle({ label, value, onChange }: { label: string; value: boolean; onC
       <span className="text-sm text-white/80">{label}</span>
       <button
         onClick={() => onChange(!value)}
+        role="switch"
+        aria-checked={value}
+        aria-label={label}
         className={cn(
           "w-10 h-6 rounded-full relative transition",
           value ? "bg-cyan-500/40" : "bg-white/10"
@@ -491,7 +640,7 @@ function AboutTab() {
           </div>
           <div>
             <div className="text-base font-bold text-white">MorphOS</div>
-            <div className="text-[10px] text-white/40 font-mono">v0.9.5 · self-writing interface</div>
+            <div className="text-[10px] text-white/40 font-mono">v{pkg.version} · self-writing interface</div>
           </div>
         </div>
         <p className="text-xs text-white/70 leading-relaxed">

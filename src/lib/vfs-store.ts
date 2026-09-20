@@ -63,7 +63,9 @@ async function saveToDB(nodes: Record<string, VFSNode>) {
   try {
     const db = await openDB();
     const tx = db.transaction(STORE_NAME, "readwrite");
-    tx.objectStore(STORE_NAME).put(nodes, "root");
+    tx.onerror = () => { /* quota: keep in-memory nodes */ };
+    const req = tx.objectStore(STORE_NAME).put(nodes, "root");
+    req.onerror = () => { /* quota: keep in-memory nodes */ };
   } catch {}
 }
 

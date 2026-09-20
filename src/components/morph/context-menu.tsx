@@ -141,7 +141,7 @@ export function ContextMenu() {
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.9, y: -5 }}
           transition={{ duration: 0.12 }}
-          className="fixed z-[2000] glass-panel-strong rounded-lg overflow-hidden py-1 min-w-[200px] shadow-2xl"
+          className="fixed z-[2000] glass-panel-strong rounded-lg overflow-y-auto thin-scroll py-1 min-w-[200px] max-h-[70vh] shadow-2xl"
           style={{ left: adjustedX, top: adjustedY }}
           onClick={(e) => e.stopPropagation()}
         >

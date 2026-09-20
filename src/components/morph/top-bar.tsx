@@ -3,49 +3,42 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useWindowStore } from "@/lib/window-store";
-import { MODULE_REGISTRY, getModuleMeta } from "./module-registry";
+import { MODULE_REGISTRY, getModuleMeta, getDefaultModuleSize as getDefaultSize } from "./module-registry";
 import { Hexagon, Grid3x3, X, Plus, Activity, Settings, Globe, Cpu, Layers } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/use-t";
 import { useSettings } from "@/lib/settings-store";
 import { PROVIDERS } from "@/lib/providers";
 
-const MODULE_SIZES: Record<string, { width: number; height: number }> = {
-  chat: { width: 460, height: 560 },
-  monitor: { width: 540, height: 420 },
-  dashboard: { width: 720, height: 480 },
-  terminal: { width: 600, height: 380 },
-  kanban: { width: 680, height: 460 },
-  notes: { width: 480, height: 460 },
-  code: { width: 680, height: 480 },
-  weather: { width: 380, height: 460 },
-  clock: { width: 360, height: 240 },
-  music: { width: 420, height: 480 },
-  calculator: { width: 320, height: 440 },
-  stock: { width: 540, height: 380 },
-  camera: { width: 480, height: 420 },
-  metrics: { width: 560, height: 380 },
-  pomodoro: { width: 320, height: 420 },
-  paint: { width: 580, height: 480 },
-  regex: { width: 540, height: 520 },
-  json: { width: 560, height: 440 },
-  colorpicker: { width: 380, height: 540 },
-  qr: { width: 360, height: 480 },
-  devtools: { width: 480, height: 540 },
-  files: { width: 580, height: 460 },
-  browser: { width: 720, height: 560 },
-  calendar: { width: 380, height: 480 },
-  whiteboard: { width: 580, height: 480 },
-  imagegen: { width: 420, height: 560 },
-};
-
-function getDefaultSize(type: string) {
-  return MODULE_SIZES[type] ?? { width: 480, height: 400 };
-}
 
 export function TopBar({ onOpenWorkspaces }: { onOpenWorkspaces: () => void }) {
+  const [online, setOnline] = useState(typeof navigator === "undefined" ? true : navigator.onLine);
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const id = setInterval(() => { if (!document.hidden) setNow(new Date()); }, 5000);
+    return () => clearInterval(id);
+  }, []);
+  useEffect(() => {
+    function up() { setOnline(true); }
+    function down() { setOnline(false); }
+    window.addEventListener("online", up);
+    window.addEventListener("offline", down);
+    return () => {
+      window.removeEventListener("online", up);
+      window.removeEventListener("offline", down);
+    };
+  }, []);
   const t = useT();
   const [paletteOpen, setPaletteOpen] = useState(false);
+
+  useEffect(() => {
+    if (!paletteOpen) return;
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setPaletteOpen(false);
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [paletteOpen]);
 
   // Listen for context menu "open palette" event
   useEffect(() => {
@@ -92,8 +85,15 @@ export function TopBar({ onOpenWorkspaces }: { onOpenWorkspaces: () => void }) {
     ? t("topbar.moduleCount", { count: windows.length })
     : t("topbar.moduleCountPlural", { count: windows.length });
 
+  const offlineLabel = t("topbar.offline");
+
   return (
     <>
+      {!online && (
+        <div className="fixed top-12 left-0 right-0 z-40 bg-amber-500/90 text-black text-[11px] font-medium text-center py-1">
+          ⚠ {offlineLabel}
+        </div>
+      )}
       <div className="fixed top-0 left-0 right-0 z-40 h-12 glass-panel border-b border-white/8 flex items-center px-4 gap-3">
         <div className="flex items-center gap-2">
           <div className="relative">
@@ -126,14 +126,22 @@ export function TopBar({ onOpenWorkspaces }: { onOpenWorkspaces: () => void }) {
           <Cpu className="w-2.5 h-2.5 text-white/40 group-hover:text-white/70" />
         </button>
 
-        <div className="flex-1 flex items-center justify-center gap-2">
-          <span className="text-[10px] text-white/40 font-mono">{moduleLabel}</span>
+        <div className="flex-1 min-w-0 hidden sm:flex items-center justify-center gap-2">
+          <span className="text-[10px] text-white/40 font-mono truncate">{moduleLabel}</span>
           {isInterpreting && (
             <span className="text-[10px] text-cyan-300 font-mono flex items-center gap-1">
               <Activity className="w-2.5 h-2.5 animate-pulse" />
               {t("topbar.writing")}
             </span>
           )}
+        </div>
+
+        {/* Real-time clock */}
+        <div
+          title={now.toLocaleDateString([], { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
+          className="text-[11px] font-mono text-white/60 tabular-nums hidden sm:block"
+        >
+          {now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
         </div>
 
         {/* Language toggle */}
@@ -204,6 +212,7 @@ export function TopBar({ onOpenWorkspaces }: { onOpenWorkspaces: () => void }) {
                 </div>
                 <button
                   onClick={() => setPaletteOpen(false)}
+                  title={t("common.close")}
                   className="text-white/40 hover:text-white"
                 >
                   <X className="w-4 h-4" />

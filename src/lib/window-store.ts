@@ -2,6 +2,7 @@
 
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
+import { safeLocalStorage } from "./safe-storage";
 
 export type ModuleType =
   | "chat" | "monitor" | "dashboard" | "terminal" | "kanban"
@@ -69,6 +70,7 @@ interface WindowStore {
   snapWindow: (id: string, zone: "left" | "right" | "top" | "bottom" | "tl" | "tr" | "bl" | "br") => void;
 
   addChatMessage: (m: Omit<ChatMessage, "id" | "ts">) => void;
+  clearChat: () => void;
   setInterpreting: (v: boolean) => void;
 
   showSpawnPreview: (data: { code: string[]; title: string; moduleType: ModuleType }) => void;
@@ -210,8 +212,11 @@ export const useWindowStore = create<WindowStore>()(
 
       addChatMessage: (m) =>
         set((s) => ({
-          chatMessages: [...s.chatMessages, { ...m, id: genId(), ts: Date.now() }],
+          // Cap persisted history so localStorage and re-renders stay cheap.
+          chatMessages: [...s.chatMessages, { ...m, id: genId(), ts: Date.now() }].slice(-200),
         })),
+
+      clearChat: () => set({ chatMessages: [] }),
 
       setInterpreting: (v) => set({ isInterpreting: v }),
 
@@ -282,7 +287,7 @@ export const useWindowStore = create<WindowStore>()(
     }),
     {
       name: "morphos-window-store",
-      storage: createJSONStorage(() => localStorage),
+      storage: createJSONStorage(() => safeLocalStorage),
       partialize: (s) => ({
         windows: s.windows,
         chatMessages: s.chatMessages,

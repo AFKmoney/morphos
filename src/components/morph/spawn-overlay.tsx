@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useWindowStore } from "@/lib/window-store";
 import { getModuleMeta } from "./module-registry";
@@ -11,6 +11,7 @@ export function SpawnOverlay() {
   const t = useT();
   const preview = useWindowStore((s) => s.spawnPreview);
   const [visibleLines, setVisibleLines] = useState<string[]>([]);
+  const bodyRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!preview) {
@@ -32,6 +33,12 @@ export function SpawnOverlay() {
     }, 80);
     return () => clearInterval(id);
   }, [preview]);
+
+  // Keep the newest generated lines visible.
+  useEffect(() => {
+    const el = bodyRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [visibleLines.length]);
 
   return (
     <AnimatePresence>
@@ -60,7 +67,7 @@ export function SpawnOverlay() {
           </div>
 
           {/* Code body */}
-          <div className="p-4 font-mono text-[11px] leading-5 max-h-[280px] overflow-y-auto thin-scroll bg-black/50">
+          <div ref={bodyRef} className="p-4 font-mono text-[11px] leading-5 max-h-[280px] overflow-y-auto thin-scroll bg-black/50">
             <div className="flex items-center gap-1.5 text-[10px] text-white/40 mb-2">
               <TerminalIcon className="w-3 h-3" />
               <span>{t("spawn.writingFile")} <span className="text-cyan-300">{preview.moduleType}.tsx</span></span>

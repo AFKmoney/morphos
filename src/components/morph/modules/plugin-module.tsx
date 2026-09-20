@@ -99,12 +99,12 @@ export function PluginModule() {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search plugins"
-            className="flex-1 bg-transparent text-xs outline-none placeholder:text-white/30"
+            className="flex-1 bg-transparent text-xs outline-none placeholder:text-white/40"
           />
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-3 space-y-2 thin-scroll">
+      <div className="flex-1 min-h-0 overflow-y-auto p-3 space-y-2 thin-scroll">
         {!ready && (
           <div className="flex items-center justify-center h-24 text-xs text-white/50 gap-2">
             <Loader2 className="w-3.5 h-3.5 animate-spin" /> Loading registry…

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import ZAI from "z-ai-web-dev-sdk";
 import type { ProviderId } from "@/lib/providers";
 import { PROVIDERS } from "@/lib/providers";
+import { anthropicChat, openaiChat } from "@/lib/llm";
 
 interface ProviderPayload {
   providerId: ProviderId;
@@ -22,7 +23,7 @@ STRICT RULES:
 5. Use "function" declarations preferred.
 6. Style with inline styles (preferred) or Tailwind CSS classes (bg-cyan-500, text-white, p-4, rounded-lg, etc.).
 7. The component receives NO props. Make it self-contained.
-8. For data, use mock data inside the component. Do NOT fetch external URLs.
+8. For data, use REAL live sources: Date/time, performance, localStorage, canvas/SVG, user input. Inline sample arrays are allowed ONLY when the request inherently needs example content (e.g. a todo demo) — and they must be editable by the user. Do NOT fetch external URLs.
 9. The component should be INTERACTIVE and useful — not just static.
 10. Keep it under 150 lines of code.
 11. The component must render something visible immediately.
@@ -128,29 +129,17 @@ async function callLLM(provider: ProviderPayload, systemPrompt: string, userProm
     if (provider.apiKey) {
       const baseUrl = provider.baseUrl || "https://api.z.ai/api/paas/v4";
       const model = provider.model || "glm-4.6";
-      const url = baseUrl.endsWith("/") ? `${baseUrl}chat/completions` : `${baseUrl}/chat/completions`;
-      const res = await fetch(url, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${provider.apiKey}`,
-        },
-        body: JSON.stringify({
-          model,
-          messages: [
-            { role: "system", content: systemPrompt },
-            { role: "user", content: userPrompt },
-          ],
-          temperature: 0.3,
-          max_tokens: 2000,
-        }),
+      return openaiChat({
+        baseUrl,
+        apiKey: provider.apiKey,
+        model,
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt },
+        ],
+        temperature: 0.3,
+        maxTokens: 2000,
       });
-      if (!res.ok) {
-        const text = await res.text().catch(() => "");
-        throw new Error(`HTTP ${res.status}: ${text.slice(0, 200)}`);
-      }
-      const data = await res.json();
-      return data?.choices?.[0]?.message?.content ?? "";
     }
     // Built-in Z.ai via SDK
     const zai = await ZAI.create();
@@ -178,31 +167,9 @@ async function callLLM(provider: ProviderPayload, systemPrompt: string, userProm
   ];
 
   if (cfg.apiStyle === "openai") {
-    const url = baseUrl.endsWith("/") ? `${baseUrl}chat/completions` : `${baseUrl}/chat/completions`;
-    const headers: Record<string, string> = { "Content-Type": "application/json" };
-    if (apiKey) headers["Authorization"] = `Bearer ${apiKey}`;
-    const res = await fetch(url, {
-      method: "POST",
-      headers,
-      body: JSON.stringify({ model, messages, temperature: 0.3, max_tokens: 2000 }),
-    });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const data = await res.json();
-    return data?.choices?.[0]?.message?.content ?? "";
+    return openaiChat({ baseUrl, apiKey, model, messages, temperature: 0.3, maxTokens: 2000 });
   } else if (cfg.apiStyle === "anthropic") {
-    const url = baseUrl.endsWith("/") ? `${baseUrl}messages` : `${baseUrl}/messages`;
-    const res = await fetch(url, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": apiKey,
-        "anthropic-version": "2023-06-01",
-      },
-      body: JSON.stringify({ model, system: systemPrompt, messages: messages.map(m => ({ role: m.role === "system" ? "user" : m.role, content: m.content })), temperature: 0.3, max_tokens: 2000 }),
-    });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const data = await res.json();
-    return data?.content?.[0]?.text ?? "";
+    return anthropicChat({ baseUrl, apiKey, model, messages, systemPrompt, temperature: 0.3, maxTokens: 2000 });
   }
   return "";
 }
@@ -210,7 +177,7 @@ async function callLLM(provider: ProviderPayload, systemPrompt: string, userProm
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json().catch(() => ({}));
-    const prompt: string = (body.prompt ?? "").toString().trim();
+    const prompt: string = (body.prompt ?? "").toString().trim().slice(0, 2000);
     const provider: ProviderPayload = body.provider ?? { providerId: "zai", apiKey: "", baseUrl: "", model: "" };
 
     if (!prompt) return NextResponse.json({ error: "missing prompt" }, { status: 400 });

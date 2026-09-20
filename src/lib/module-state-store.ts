@@ -2,6 +2,7 @@
 
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
+import { safeLocalStorage } from "./safe-storage";
 
 interface ModuleStateStore {
   // Generic key-value store for module-specific state
@@ -31,7 +32,7 @@ export const useModuleState = create<ModuleStateStore>()(
           states: { ...s.states, [key]: state },
         })),
       
-      loadState: (key) => get().states[key],
+      loadState: <T,>(key: string) => get().states[key] as T | undefined,
       
       clearState: (key) =>
         set((s) => {
@@ -44,21 +45,22 @@ export const useModuleState = create<ModuleStateStore>()(
     }),
     {
       name: "morphos-module-states",
-      storage: createJSONStorage(() => localStorage),
+      storage: createJSONStorage(() => safeLocalStorage),
     }
   )
 );
 
 // Helper hook for modules to save/load their state
-export function useModulePersist<T>(key: string, initial: T): [T, (v: T) => void] {
+export function useModulePersist<T>(key: string, initial: T): [T, (v: T | ((prev: T) => T)) => void] {
   const states = useModuleState((s) => s.states);
   const saveState = useModuleState((s) => s.saveState);
-  
+
   const value = (states[key] as T) ?? initial;
-  
-  const setValue = (v: T) => {
-    saveState(key, v);
+
+  const setValue = (v: T | ((prev: T) => T)) => {
+    const next = typeof v === "function" ? (v as (prev: T) => T)(value) : v;
+    saveState(key, next);
   };
-  
+
   return [value, setValue];
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { create } from "zustand";
+import { create, type StoreApi, type UseBoundStore } from "zustand";
 import type {
   MorphOSPlugin,
   PluginManifest,
@@ -78,13 +78,15 @@ interface PluginStore {
   debug: () => void;
 }
 
-// Instance unique du registry
-let pluginRegistryInstance: PluginStore | null = null;
+export type PluginRegistryStore = UseBoundStore<StoreApi<PluginStore>>;
+
+// Instance unique du registry (un vrai Zustand store, pas le state brut)
+let pluginRegistryInstance: PluginRegistryStore | null = null;
 
 /**
  * Crée ou retourne l'instance unique du PluginRegistry
  */
-export function getPluginRegistry(): PluginStore {
+export function getPluginRegistry(): PluginRegistryStore {
   if (pluginRegistryInstance) {
     return pluginRegistryInstance;
   }
@@ -463,8 +465,7 @@ export function getPluginRegistry(): PluginStore {
 /**
  * Crée un contexte pour un plugin
  */
-function createPluginContext(pluginId: string, store: PluginStore): any {
-  const state = store.getState();
+function createPluginContext(pluginId: string, state: PluginStore): any {
   const plugin = state.loaded.get(pluginId);
   const manifest = state.manifests.get(pluginId);
   
@@ -477,33 +478,33 @@ function createPluginContext(pluginId: string, store: PluginStore): any {
     morphos: {
       fs: {
         readFile: async (path: string) => {
-          if (!store.hasPermission(pluginId, 'fs.read')) {
+          if (!state.hasPermission(pluginId, 'fs.read')) {
             throw new Error(`Plugin "${pluginId}" does not have permission "fs.read"`);
           }
           // À implémenter: intégration avec VFS
           return '';
         },
         writeFile: async (path: string, content: string) => {
-          if (!store.hasPermission(pluginId, 'fs.write')) {
+          if (!state.hasPermission(pluginId, 'fs.write')) {
             throw new Error(`Plugin "${pluginId}" does not have permission "fs.write"`);
           }
           // À implémenter: intégration avec VFS
         },
         deleteFile: async (path: string) => {
-          if (!store.hasPermission(pluginId, 'fs.delete')) {
+          if (!state.hasPermission(pluginId, 'fs.delete')) {
             throw new Error(`Plugin "${pluginId}" does not have permission "fs.delete"`);
           }
           // À implémenter: intégration avec VFS
         },
         listFiles: async (path: string) => {
-          if (!store.hasPermission(pluginId, 'fs.list')) {
+          if (!state.hasPermission(pluginId, 'fs.list')) {
             throw new Error(`Plugin "${pluginId}" does not have permission "fs.list"`);
           }
           // À implémenter: intégration avec VFS
           return [];
         },
         exists: async (path: string) => {
-          if (!store.hasPermission(pluginId, 'fs.read')) {
+          if (!state.hasPermission(pluginId, 'fs.read')) {
             throw new Error(`Plugin "${pluginId}" does not have permission "fs.read"`);
           }
           // À implémenter: intégration avec VFS
@@ -512,14 +513,14 @@ function createPluginContext(pluginId: string, store: PluginStore): any {
       },
       windows: {
         create: async (options: any) => {
-          if (!store.hasPermission(pluginId, 'window.create')) {
+          if (!state.hasPermission(pluginId, 'window.create')) {
             throw new Error(`Plugin "${pluginId}" does not have permission "window.create"`);
           }
           // À implémenter: intégration avec useWindowStore
           return '';
         },
         close: async (windowId: string) => {
-          if (!store.hasPermission(pluginId, 'window.close')) {
+          if (!state.hasPermission(pluginId, 'window.close')) {
             throw new Error(`Plugin "${pluginId}" does not have permission "window.close"`);
           }
           // À implémenter: intégration avec useWindowStore
@@ -535,19 +536,19 @@ function createPluginContext(pluginId: string, store: PluginStore): any {
       },
       ui: {
         notify: (options: any) => {
-          if (!store.hasPermission(pluginId, 'ui.notify')) {
+          if (!state.hasPermission(pluginId, 'ui.notify')) {
             throw new Error(`Plugin "${pluginId}" does not have permission "ui.notify"`);
           }
           // À implémenter: utiliser le système de toast existant
         },
         showModal: (component: any, options?: any) => {
-          if (!store.hasPermission(pluginId, 'ui.modal')) {
+          if (!state.hasPermission(pluginId, 'ui.modal')) {
             throw new Error(`Plugin "${pluginId}" does not have permission "ui.modal"`);
           }
           // À implémenter
         },
         showToast: (message: string, options?: any) => {
-          if (!store.hasPermission(pluginId, 'ui.toast')) {
+          if (!state.hasPermission(pluginId, 'ui.toast')) {
             throw new Error(`Plugin "${pluginId}" does not have permission "ui.toast"`);
           }
           // À implémenter
@@ -555,13 +556,13 @@ function createPluginContext(pluginId: string, store: PluginStore): any {
       },
       network: {
         fetch: async (url: string, options?: RequestInit) => {
-          if (!store.hasPermission(pluginId, 'network.http')) {
+          if (!state.hasPermission(pluginId, 'network.http')) {
             throw new Error(`Plugin "${pluginId}" does not have permission "network.http"`);
           }
           return fetch(url, options);
         },
         websocket: (url: string) => {
-          if (!store.hasPermission(pluginId, 'network.websocket')) {
+          if (!state.hasPermission(pluginId, 'network.websocket')) {
             throw new Error(`Plugin "${pluginId}" does not have permission "network.websocket"`);
           }
           return new WebSocket(url);
@@ -569,19 +570,19 @@ function createPluginContext(pluginId: string, store: PluginStore): any {
       },
       storage: {
         getItem: (key: string) => {
-          if (!store.hasPermission(pluginId, 'storage.local')) {
+          if (!state.hasPermission(pluginId, 'storage.local')) {
             throw new Error(`Plugin "${pluginId}" does not have permission "storage.local"`);
           }
           return localStorage.getItem(key);
         },
         setItem: (key: string, value: string) => {
-          if (!store.hasPermission(pluginId, 'storage.local')) {
+          if (!state.hasPermission(pluginId, 'storage.local')) {
             throw new Error(`Plugin "${pluginId}" does not have permission "storage.local"`);
           }
           localStorage.setItem(key, value);
         },
         removeItem: (key: string) => {
-          if (!store.hasPermission(pluginId, 'storage.local')) {
+          if (!state.hasPermission(pluginId, 'storage.local')) {
             throw new Error(`Plugin "${pluginId}" does not have permission "storage.local"`);
           }
           localStorage.removeItem(key);
@@ -589,14 +590,14 @@ function createPluginContext(pluginId: string, store: PluginStore): any {
       },
       ai: {
         chat: async (messages: any[], options?: any) => {
-          if (!store.hasPermission(pluginId, 'ai.chat')) {
+          if (!state.hasPermission(pluginId, 'ai.chat')) {
             throw new Error(`Plugin "${pluginId}" does not have permission "ai.chat"`);
           }
           // À implémenter: intégration avec les APIs IA
           return '';
         },
         generate: async (prompt: string, options?: any) => {
-          if (!store.hasPermission(pluginId, 'ai.generate')) {
+          if (!state.hasPermission(pluginId, 'ai.generate')) {
             throw new Error(`Plugin "${pluginId}" does not have permission "ai.generate"`);
           }
           // À implémenter
@@ -615,7 +616,7 @@ function createPluginContext(pluginId: string, store: PluginStore): any {
     },
     settings: state.installed.get(pluginId)?.settings || {},
     updateSettings: async (newSettings: Record<string, unknown>) => {
-      await store.getState().setSettings(pluginId, newSettings);
+      await state.setSettings(pluginId, newSettings);
     },
   };
 }
@@ -630,10 +631,10 @@ export function usePluginRegistry() {
 
 // Fonction utilitaire pour enregistrer un plugin facilement
 export function registerPlugin(plugin: MorphOSPlugin, source?: PluginSource) {
-  return pluginRegistry.register(plugin, source);
+  return pluginRegistry.getState().register(plugin, source);
 }
 
 // Fonction utilitaire pour désenregistrer un plugin
 export function unregisterPlugin(pluginId: string) {
-  return pluginRegistry.unregister(pluginId);
+  return pluginRegistry.getState().unregister(pluginId);
 }

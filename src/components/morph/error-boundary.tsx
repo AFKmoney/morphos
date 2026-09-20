@@ -5,6 +5,7 @@ import React from "react";
 interface Props {
   children: React.ReactNode;
   fallbackTitle?: string;
+  onClose?: () => void;
 }
 
 interface State {
@@ -35,16 +36,27 @@ export class ModuleErrorBoundary extends React.Component<Props, State> {
           <div className="text-rose-300 text-sm font-medium">
             {this.props.fallbackTitle ?? "Module crashed"}
           </div>
-          <pre className="text-[11px] text-white/50 max-w-full overflow-auto whitespace-pre-wrap">
+          <pre className="text-[11px] text-white/50 max-w-full overflow-auto thin-scroll whitespace-pre-wrap">
             {this.state.error.message}
           </pre>
-          <button
-            type="button"
-            className="text-xs px-3 py-1.5 rounded bg-white/10 hover:bg-white/15 text-white/80"
-            onClick={() => this.setState({ error: null })}
-          >
-            Retry
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              className="text-xs px-3 py-1.5 rounded bg-white/10 hover:bg-white/15 text-white/80"
+              onClick={() => this.setState({ error: null })}
+            >
+              Retry
+            </button>
+            {this.props.onClose && (
+              <button
+                type="button"
+                className="text-xs px-3 py-1.5 rounded bg-rose-500/15 hover:bg-rose-500/25 text-rose-300"
+                onClick={this.props.onClose}
+              >
+                Close window
+              </button>
+            )}
+          </div>
         </div>
       );
     }
