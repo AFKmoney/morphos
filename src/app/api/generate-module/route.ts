@@ -177,7 +177,7 @@ async function callLLM(provider: ProviderPayload, systemPrompt: string, userProm
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json().catch(() => ({}));
-    const prompt: string = (body.prompt ?? "").toString().trim().slice(0, 4000);
+    const prompt: string = (body.prompt ?? "").toString().trim().slice(0, 2000);
     const provider: ProviderPayload = body.provider ?? { providerId: "zai", apiKey: "", baseUrl: "", model: "" };
 
     if (!prompt) return NextResponse.json({ error: "missing prompt" }, { status: 400 });

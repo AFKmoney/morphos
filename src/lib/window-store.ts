@@ -2,6 +2,7 @@
 
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
+import { safeLocalStorage } from "./safe-storage";
 
 export type ModuleType =
   | "chat" | "monitor" | "dashboard" | "terminal" | "kanban"
@@ -286,7 +287,7 @@ export const useWindowStore = create<WindowStore>()(
     }),
     {
       name: "morphos-window-store",
-      storage: createJSONStorage(() => localStorage),
+      storage: createJSONStorage(() => safeLocalStorage),
       partialize: (s) => ({
         windows: s.windows,
         chatMessages: s.chatMessages,

@@ -178,6 +178,11 @@ export function FilesModule() {
               {selectedNode.name.split(".").pop() || "file"}
             </span>
           )}
+          {fileContent != null && (
+            <span className="text-[9px] font-mono text-white/35 whitespace-nowrap">
+              {fileContent.length < 1024 ? `${fileContent.length} B` : `${(fileContent.length / 1024).toFixed(1)} KB`} · {fileContent.split("\n").length} lines
+            </span>
+          )}
           {selectedFile && !editing && (
             <button onClick={startEdit} className="ml-auto text-[10px] px-2 py-0.5 rounded bg-cyan-500/20 text-cyan-300 hover:bg-cyan-500/30 flex items-center gap-1">
               <Edit3 className="w-2.5 h-2.5" /> Edit

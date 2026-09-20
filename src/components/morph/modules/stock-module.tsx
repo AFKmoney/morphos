@@ -100,7 +100,7 @@ export function StockModule() {
           <span className="w-1 h-1 rounded-full bg-emerald-400 live-dot" />
           CoinGecko · live
         </span>
-        <span className="font-mono">{new Date().toLocaleTimeString("en")}</span>
+        <span className="font-mono">{new Date().toLocaleTimeString([])}</span>
       </div>
       {error && <div className="text-[9px] text-amber-400/60">Reconnecting…</div>}
       <div className="flex-1 min-h-0 space-y-1 overflow-y-auto thin-scroll">
@@ -117,7 +117,7 @@ export function StockModule() {
               </div>
               <div className="text-right">
                 <div className="font-mono text-sm text-white tabular-nums">
-                  ${q.price < 1 ? q.price.toFixed(4) : q.price.toLocaleString("en", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  ${q.price < 1 ? q.price.toFixed(4) : q.price.toLocaleString([], { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </div>
                 <div className={`text-[10px] flex items-center justify-end gap-0.5 ${up ? "text-emerald-400" : "text-rose-400"}`}>
                   {up ? <TrendingUp className="w-2.5 h-2.5" /> : <TrendingDown className="w-2.5 h-2.5" />}

@@ -51,6 +51,9 @@ export function NotesModule() {
         <FileText className="w-3 h-3 text-cyan-400" />
         <span className="text-[10px] text-white/40 flex-1">
           notes.md
+          <span className="text-white/30 ml-1.5 font-mono">
+            {md.trim() ? md.trim().split(/\s+/).length : 0} mots
+          </span>
           {savedAt && (
             <span className="text-emerald-400/70 ml-1.5">
               ✓ {new Date(savedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })}

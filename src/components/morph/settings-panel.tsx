@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import pkg from "../../../package.json";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   X, Key, Globe, Palette, Info, Check, AlertCircle, Loader2,
@@ -622,7 +623,7 @@ function AboutTab() {
           </div>
           <div>
             <div className="text-base font-bold text-white">MorphOS</div>
-            <div className="text-[10px] text-white/40 font-mono">v0.9.5 · self-writing interface</div>
+            <div className="text-[10px] text-white/40 font-mono">v{pkg.version} · self-writing interface</div>
           </div>
         </div>
         <p className="text-xs text-white/70 leading-relaxed">

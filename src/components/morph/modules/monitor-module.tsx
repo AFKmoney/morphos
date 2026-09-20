@@ -38,21 +38,23 @@ export function MonitorModule() {
 
     // Initial network measurement
     let lastEntries = performance.getEntriesByType("resource") as PerformanceResourceTiming[];
+    let lastTick = performance.now();
 
     const id = setInterval(() => {
       if (document.hidden) return;
-      // CPU: estimate from main thread blocking (rough)
-      // Use requestAnimationFrame timing to estimate thread contention
-      const navEntries = performance.getEntriesByType("navigation") as PerformanceNavigationTiming[];
-      const cpuLoad = navEntries.length > 0
-        ? Math.min(1, (navEntries[0].domComplete - navEntries[0].domInteractive) / 2000)
-        : 0.3 + Math.random() * 0.2;
+      // CPU (real): event-loop lag + FPS-derived load — both live signals
+      const nowTick = performance.now();
+      const drift = Math.max(0, nowTick - lastTick - 1000);
+      lastTick = nowTick;
+      const lagLoad = Math.min(1, drift / 400);
+      const fpsLoad = Math.max(0, Math.min(1, 1 - fps / 60));
+      const cpuLoad = Math.max(lagLoad, fpsLoad, 0.03);
 
-      // Memory: real data if available (Chrome)
-      const mem = (performance as any).memory;
+      // Memory: real data if available (Chrome), else honest n/a (-1)
+      const mem = (performance as { memory?: { usedJSHeapSize: number; jsHeapSizeLimit: number } }).memory;
       const memoryUsage = mem
         ? mem.usedJSHeapSize / mem.jsHeapSizeLimit
-        : 0.4 + Math.random() * 0.2;
+        : -1;
 
       // Network: bytes transferred
       const currentEntries = performance.getEntriesByType("resource") as PerformanceResourceTiming[];
@@ -61,8 +63,8 @@ export function MonitorModule() {
       lastEntries = currentEntries;
       const networkActivity = Math.min(1, bytesTransferred / 100000); // scale to 0-1
 
-      // Disk: estimate from localStorage usage
-      let diskEstimate = 0.3;
+      // Disk: estimate from localStorage usage (-1 = unavailable)
+      let diskEstimate = -1;
       try {
         let total = 0;
         for (let i = 0; i < localStorage.length; i++) {
@@ -74,9 +76,9 @@ export function MonitorModule() {
 
       const sample: Sample = {
         cpu: Math.max(0.05, Math.min(0.98, cpuLoad)),
-        memory: Math.max(0.05, Math.min(0.98, memoryUsage)),
+        memory: memoryUsage < 0 ? -1 : Math.max(0.05, Math.min(0.98, memoryUsage)),
         network: networkActivity,
-        disk: Math.max(0.05, Math.min(0.98, diskEstimate)),
+        disk: diskEstimate < 0 ? -1 : Math.max(0.05, Math.min(0.98, diskEstimate)),
         fps,
         ts: Date.now(),
       };
@@ -144,7 +146,8 @@ function Gauge({ label, value, color, icon: Icon, data }: {
   icon: React.ElementType;
   data: number[];
 }) {
-  const pct = Math.round(value * 100);
+  const na = value < 0;
+  const pct = na ? 0 : Math.round(value * 100);
   return (
     <div className="bg-black/30 border border-white/8 rounded-lg p-3">
       <div className="flex items-center justify-between mb-2">
@@ -152,7 +155,7 @@ function Gauge({ label, value, color, icon: Icon, data }: {
           <Icon className="w-3 h-3" style={{ color }} />
           {label}
         </div>
-        <div className="text-sm font-mono font-bold" style={{ color }}>{pct}%</div>
+        <div className="text-sm font-mono font-bold" style={{ color }}>{na ? "n/a" : `${pct}%`}</div>
       </div>
       <div className="h-1.5 bg-white/5 rounded-full overflow-hidden mb-2">
         <div className="h-full rounded-full transition-all duration-500"

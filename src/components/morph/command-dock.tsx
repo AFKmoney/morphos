@@ -4,7 +4,7 @@ import { useRef, useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useWindowStore } from "@/lib/window-store";
 import { getModuleMeta, getDefaultModuleSize as getDefaultSize } from "./module-registry";
-import { Sparkles, Send, X, Layers, Zap, Hexagon, ChevronUp, Mic, MicOff } from "lucide-react";
+import { Sparkles, Send, Square, ArrowDown, X, Layers, Zap, ChevronUp, Mic, MicOff } from "lucide-react";
 import { cn, fetchJson } from "@/lib/utils";
 import { useT } from "@/lib/use-t";
 import { useSettings, buildProviderPayload } from "@/lib/settings-store";
@@ -35,6 +35,8 @@ export function CommandDock() {
 
   const [input, setInput] = useState("");
   const taRef = useRef<HTMLTextAreaElement>(null);
+  const abortRef = useRef<AbortController | null>(null);
+  const readerRef = useRef<ReadableStreamDefaultReader<Uint8Array> | null>(null);
 
   // Voice input
   const { listening, supported: voiceSupported, toggle: toggleVoice } = useVoiceInput((text) => {
@@ -87,16 +89,20 @@ export function CommandDock() {
     if (taRef.current) taRef.current.style.height = "auto";
     addChatMessage({ role: "user", content: text });
     setInterpreting(true);
+    abortRef.current = new AbortController();
+    const signal = abortRef.current.signal;
 
     try {
       const history = chatMessages
         .filter((m) => m.role !== "system")
+        .slice(-20)
         .map((m) => ({ role: m.role, content: m.content }));
 
       // Use streaming SSE endpoint
       const res = await fetch("/api/interpret-stream", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        signal,
         body: JSON.stringify({
           prompt: text,
           history,
@@ -127,6 +133,7 @@ export function CommandDock() {
 
       // Read SSE stream
       const reader = res.body?.getReader();
+      readerRef.current = reader ?? null;
       const decoder = new TextDecoder();
       let streamedText = "";
       let finalData: any = null;
@@ -186,12 +193,14 @@ export function CommandDock() {
           moduleType: data.moduleType,
         });
         await new Promise((r) => setTimeout(r, 1600));
+        if (signal.aborted) { hideSpawnPreview(); return; }
 
         try {
           const genData = await fetchJson("/api/generate-module", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ prompt: data.prompt, provider: buildProviderPayload() }),
+            body: JSON.stringify({ prompt: data.prompt.slice(0, 2000), provider: buildProviderPayload() }),
+            signal,
           });
           if (genData.code) {
             customCode = genData.code;
@@ -211,9 +220,11 @@ export function CommandDock() {
           moduleType: data.moduleType,
         });
         await new Promise((r) => setTimeout(r, 1200));
+        if (signal.aborted) { hideSpawnPreview(); return; }
       } else {
         showSpawnPreview({ code: data.codePreview, title: data.title, moduleType: data.moduleType });
         await new Promise((r) => setTimeout(r, 1600));
+        if (signal.aborted) { hideSpawnPreview(); return; }
         addChatMessage({ role: "assistant", content: data.aiMessage });
       }
 
@@ -241,11 +252,18 @@ export function CommandDock() {
       addRecentModule(data.moduleType);
       hideSpawnPreview();
     } catch (e) {
-      addChatMessage({ role: "assistant", content: t("chat.fail") });
+      addChatMessage({ role: "assistant", content: signal.aborted ? t("chat.stopped") : t("chat.fail") });
       hideSpawnPreview();
     } finally {
+      abortRef.current = null;
+      readerRef.current = null;
       setInterpreting(false);
     }
+  }
+
+  function stop() {
+    readerRef.current?.cancel().catch(() => {});
+    abortRef.current?.abort();
   }
 
   function onKeyDown(e: React.KeyboardEvent) {
@@ -389,13 +407,18 @@ export function CommandDock() {
                 </button>
               )}
               <button
-                onClick={send}
-                title={t("dock.send")}
-                disabled={!input.trim() || isInterpreting}
-                className="w-9 h-9 rounded-full bg-gradient-to-br from-cyan-400 to-emerald-400 text-black flex items-center justify-center shrink-0 disabled:opacity-30 disabled:cursor-not-allowed hover:brightness-110 active:scale-95 transition"
+                onClick={isInterpreting ? stop : send}
+                title={isInterpreting ? t("chat.stop") : t("dock.send")}
+                disabled={!isInterpreting && !input.trim()}
+                className={cn(
+                  "w-9 h-9 rounded-full text-black flex items-center justify-center shrink-0 disabled:opacity-30 disabled:cursor-not-allowed hover:brightness-110 active:scale-95 transition",
+                  isInterpreting
+                    ? "bg-gradient-to-br from-rose-400 to-orange-400"
+                    : "bg-gradient-to-br from-cyan-400 to-emerald-400"
+                )}
               >
                 {isInterpreting ? (
-                  <Hexagon className="w-4 h-4 animate-spin" />
+                  <Square className="w-3.5 h-3.5" fill="currentColor" />
                 ) : (
                   <Send className="w-3.5 h-3.5" />
                 )}
@@ -425,18 +448,36 @@ function ChatHistory() {
   const isInterpreting = useWindowStore((s) => s.isInterpreting);
   const t = useT();
   const scrollRef = useRef<HTMLDivElement>(null);
+  const stick = useRef(true);
+  const [showJump, setShowJump] = useState(false);
 
   useEffect(() => {
-    if (scrollRef.current) {
+    if (stick.current && scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [chatMessages.length, isInterpreting]);
 
+  function onScroll() {
+    const el = scrollRef.current;
+    if (!el) return;
+    const dist = el.scrollHeight - el.scrollTop - el.clientHeight;
+    stick.current = dist < 60;
+    setShowJump(dist > 120);
+  }
+
+  function jump() {
+    stick.current = true;
+    setShowJump(false);
+    scrollRef.current?.scrollTo({ top: 999999, behavior: "smooth" });
+  }
+
   return (
-    <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto p-3 space-y-3 thin-scroll">
+    <div className="relative flex-1 min-h-0 flex flex-col">
+    <div ref={scrollRef} onScroll={onScroll} className="flex-1 min-h-0 overflow-y-auto p-3 space-y-3 thin-scroll">
       {chatMessages.map((m) => (
         <div key={m.id} className={cn("flex", m.role === "user" ? "justify-end" : "justify-start")}>
           <div
+            title={new Date(m.ts).toLocaleString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
             className={cn(
               "max-w-[88%] rounded-xl px-3 py-2 text-xs leading-relaxed",
               m.role === "user"
@@ -459,6 +500,16 @@ function ChatHistory() {
           <span className="shimmer-text">{t("dock.interpreting")}</span>
         </div>
       )}
+    </div>
+    {showJump && (
+      <button
+        onClick={jump}
+        title={t("chat.jumpToLatest")}
+        className="absolute bottom-3 right-3 z-10 w-8 h-8 rounded-full glass-panel-strong border border-cyan-400/30 text-cyan-300 flex items-center justify-center hover:bg-cyan-500/20"
+      >
+        <ArrowDown className="w-4 h-4" />
+      </button>
+    )}
     </div>
   );
 }

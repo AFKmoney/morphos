@@ -2,6 +2,7 @@
 
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
+import { safeLocalStorage } from "./safe-storage";
 
 interface AIMemory {
   id: string;
@@ -72,7 +73,7 @@ export const useAIContext = create<AIContextStore>()(
     }),
     {
       name: "morphos-ai-memory",
-      storage: createJSONStorage(() => localStorage),
+      storage: createJSONStorage(() => safeLocalStorage),
     }
   )
 );

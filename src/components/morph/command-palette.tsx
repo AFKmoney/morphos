@@ -7,6 +7,7 @@ import { useWindowStore, type ModuleType } from "@/lib/window-store";
 import { MODULE_REGISTRY, getModuleMeta, getDefaultModuleSize } from "./module-registry";
 import { useSettings } from "@/lib/settings-store";
 import { useT } from "@/lib/use-t";
+import { useAIContext } from "@/lib/ai-context-store";
 import { cn } from "@/lib/utils";
 
 interface Command {
@@ -31,6 +32,9 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
   const closeAll = useWindowStore((s) => s.closeAll);
   const openSettings = useSettings((s) => s.openSettings);
   const toggleLanguage = useSettings((s) => s.toggleLanguage);
+  const fr = useSettings((s) => s.language) === "fr";
+  const recentModules = useAIContext((s) => s.recentModules);
+  const addRecentModule = useAIContext((s) => s.addRecentModule);
 
   useEffect(() => {
     if (open) setTimeout(() => inputRef.current?.focus(), 50);
@@ -56,6 +60,7 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
       width: def.width,
       height: def.height,
     });
+    addRecentModule(type);
     onClose();
   }
 
@@ -76,12 +81,20 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
     { id: "close-all", label: t("topbar.closeAll"), hint: "Close every window", icon: XCircle, accent: "#f43f5e", action: () => { closeAll(); onClose(); }, group: "system" },
   ];
 
-  const filtered = query
+  const searched = query
     ? commands.filter((c) => {
         const q = query.toLowerCase();
         return c.label.toLowerCase().includes(q) || c.hint?.toLowerCase().includes(q) || c.id.includes(q);
       })
     : commands;
+  // Real usage first: recently spawned modules float to the top when no query
+  const recentCmds: Command[] = !query
+    ? recentModules
+        .map((rt) => commands.find((c) => c.id === `spawn-${rt}`))
+        .filter((c): c is Command => !!c)
+    : [];
+  const recentIds = new Set(recentCmds.map((c) => c.id));
+  const filtered = [...recentCmds, ...searched.filter((c) => !recentIds.has(c.id))];
 
   const safeSelected = Math.min(selected, Math.max(0, filtered.length - 1));
 
@@ -128,9 +141,16 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
                 filtered.map((cmd, i) => {
                   const Icon = cmd.icon;
                   const isSelected = i === safeSelected;
+                  const showRecentHd = !query && recentCmds.length > 0 && i === 0;
+                  const showAllHd = !query && recentCmds.length > 0 && i === recentCmds.length;
                   return (
+                    <div key={cmd.id}>
+                    {(showRecentHd || showAllHd) && (
+                      <div className="text-[9px] uppercase tracking-widest text-white/35 font-mono px-3 pt-2 pb-0.5">
+                        {showRecentHd ? (fr ? "Récents" : "Recent") : (fr ? "Tous les modules" : "All modules")}
+                      </div>
+                    )}
                     <button
-                      key={cmd.id}
                       ref={(el) => {
                         itemRefs.current[i] = el;
                       }}
@@ -149,6 +169,7 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
                       <span className="text-[9px] uppercase tracking-wider text-white/50">{cmd.group}</span>
                       {isSelected && <CornerDownLeft className="w-3 h-3 text-cyan-400" />}
                     </button>
+                    </div>
                   );
                 })
               )}

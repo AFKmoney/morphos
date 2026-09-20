@@ -2,6 +2,7 @@
 
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
+import { safeLocalStorage } from "./safe-storage";
 import type { ProviderId } from "./providers";
 import type { Language } from "./i18n";
 
@@ -123,7 +124,7 @@ export const useSettings = create<SettingsState>()(
     }),
     {
       name: "morphos-settings",
-      storage: createJSONStorage(() => localStorage),
+      storage: createJSONStorage(() => safeLocalStorage),
       // Don't persist settingsOpen
       partialize: (s) => ({
         providerId: s.providerId,

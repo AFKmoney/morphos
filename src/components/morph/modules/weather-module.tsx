@@ -127,7 +127,7 @@ export function WeatherModule() {
             <Icon className="w-16 h-16 mb-2 float-slow" style={{ color: info.color }} />
             <div className="text-5xl font-thin text-white">{data.temp}°</div>
             <div className="text-sm text-white/60 mt-1">{info.label}</div>
-            <div className="text-[10px] text-white/40 mt-1">{city.name} · {new Date().toLocaleTimeString("en", { hour: "2-digit", minute: "2-digit" })}</div>
+            <div className="text-[10px] text-white/40 mt-1">{city.name} · {new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</div>
           </div>
 
           <div className="grid grid-cols-3 gap-2 text-[10px]">

@@ -40,6 +40,7 @@ export function MetricsModule() {
     }
     measureFPS();
 
+    let memWarned = false;
     const id = setInterval(() => {
       if (document.hidden) return;
       // Real FPS
@@ -66,12 +67,15 @@ export function MetricsModule() {
       }
       lastResourceCount = resourceCount;
 
-      // Memory warnings
-      if (mem && memMB > 50) {
+      // Memory warnings — edge-triggered only (no spam while above threshold)
+      if (mem && memMB > 50 && !memWarned) {
+        memWarned = true;
         setEvents(prev => [
           { ts: Date.now(), level: "warn", msg: `JS heap high: ${memMB}MB` },
           ...prev.slice(0, 9),
         ]);
+      } else if (memMB <= 50) {
+        memWarned = false;
       }
 
       setMetrics(prev => prev.map(m => {
@@ -138,7 +142,7 @@ export function MetricsModule() {
           ) : (
             events.map((e, i) => (
               <div key={i} className="text-white/60 line-fade-in">
-                <span className="text-white/40">{new Date(e.ts).toLocaleTimeString("en")}</span>{" "}
+                <span className="text-white/40">{new Date(e.ts).toLocaleTimeString([])}</span>{" "}
                 <span className={e.level === "warn" ? "text-amber-400" : e.level === "error" ? "text-rose-400" : "text-cyan-400"}>
                   [{e.level}]
                 </span>{" "}

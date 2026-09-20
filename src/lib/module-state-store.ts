@@ -2,6 +2,7 @@
 
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
+import { safeLocalStorage } from "./safe-storage";
 
 interface ModuleStateStore {
   // Generic key-value store for module-specific state
@@ -44,7 +45,7 @@ export const useModuleState = create<ModuleStateStore>()(
     }),
     {
       name: "morphos-module-states",
-      storage: createJSONStorage(() => localStorage),
+      storage: createJSONStorage(() => safeLocalStorage),
     }
   )
 );

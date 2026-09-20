@@ -13,6 +13,11 @@ import { PROVIDERS } from "@/lib/providers";
 
 export function TopBar({ onOpenWorkspaces }: { onOpenWorkspaces: () => void }) {
   const [online, setOnline] = useState(typeof navigator === "undefined" ? true : navigator.onLine);
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const id = setInterval(() => { if (!document.hidden) setNow(new Date()); }, 5000);
+    return () => clearInterval(id);
+  }, []);
   useEffect(() => {
     function up() { setOnline(true); }
     function down() { setOnline(false); }
@@ -129,6 +134,14 @@ export function TopBar({ onOpenWorkspaces }: { onOpenWorkspaces: () => void }) {
               {t("topbar.writing")}
             </span>
           )}
+        </div>
+
+        {/* Real-time clock */}
+        <div
+          title={now.toLocaleDateString([], { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
+          className="text-[11px] font-mono text-white/60 tabular-nums hidden sm:block"
+        >
+          {now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
         </div>
 
         {/* Language toggle */}

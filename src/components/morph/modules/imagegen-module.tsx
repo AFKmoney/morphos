@@ -154,6 +154,7 @@ export function ImageGenModule() {
                 key={i}
                 title={h.prompt}
                 onClick={() => {
+                  setPrompt(h.prompt);
                   if (h.base64) { setBase64(h.base64); setImageUrl(""); }
                   else { setImageUrl(h.url); setBase64(""); }
                 }}

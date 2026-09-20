@@ -195,6 +195,31 @@ const rel = (f) => pathlib.relative(ROOT, f);
   if (!bad) pass("aucun res.json() brut côté client");
 }
 
+// 8. zéro fake/simulé (Round 2): pas de Math.random() dans les données des
+// modules, pas de FAKE_/lorem, pas de locale "en" hardcodée.
+{
+  let bad = 0;
+  for (const f of all) {
+    if (f.includes("components/ui/") || f.includes("src/plugins/") || f.includes("__tests__")) continue;
+    const s = read(f);
+    const lines = s.split("\n");
+    lines.forEach((line, i) => {
+      const loc = `${rel(f)}:${i + 1}`;
+      if (/Math\.random\(/.test(line) && !/Math\.floor\(Math\.random\(\)\*4\)/.test(line)) {
+        bad++;
+        fail(`${loc}: Math.random() — donnée simulée interdite, utiliser une vraie source`);
+      }
+      if (/FAKE_/.test(line)) { bad++; fail(`${loc}: identifiant FAKE_ résiduel`); }
+      if (/lorem/i.test(line)) { bad++; fail(`${loc}: texte lorem résiduel`); }
+      if (/toLocale(DateString|TimeString|String)\("en"/.test(line)) {
+        bad++;
+        fail(`${loc}: locale "en" hardcodée — utiliser la locale du navigateur`);
+      }
+    });
+  }
+  if (!bad) pass("zéro donnée simulée (Math.random/FAKE/lorem/locale en) dans les modules");
+}
+
 console.log(`\n${fails.length} FAIL, ${warns.length} warnings.`);
 if (fails.length > 0) process.exit(1);
 console.log("AUDIT GREEN ✓");

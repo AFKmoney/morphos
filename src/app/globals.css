@@ -183,6 +183,23 @@
   }
 }
 
+/* ============ Round 2 · A1: filet global — toute zone scrollable oubliée garde le look glass ============ */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.22) transparent;
+}
+*::-webkit-scrollbar { width: 8px; height: 8px; }
+*::-webkit-scrollbar-track, *::-webkit-scrollbar-corner { background: transparent; }
+*::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.28), rgba(255, 255, 255, 0.10));
+  background-clip: padding-box;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 8px;
+}
+/* ============ Round 2 · A2: viewport Radix — jamais de double scrollbar (seul le thumb glass) ============ */
+[data-slot="scroll-area-viewport"] { scrollbar-width: none !important; }
+[data-slot="scroll-area-viewport"]::-webkit-scrollbar { display: none !important; }
+
 /* ============ Scrollbar (glassmorphism) ============ */
 /* Frosted-glass thumb: translucent gradient + hairline border + inset highlight.
    (backdrop-filter doesn't apply to scrollbar pseudo-elements, so the glass

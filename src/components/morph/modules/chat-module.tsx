@@ -292,7 +292,7 @@ export function ChatModule({}: ChatModuleProps) {
             </div>
           )}
           {chatMessages.slice(-100).map((m) => (
-            <MessageBubble key={m.id} role={m.role} content={m.content} t={t} />
+            <MessageBubble key={m.id} role={m.role} content={m.content} ts={m.ts} t={t} />
           ))}
           {isInterpreting && (
             <div className="flex items-center gap-2 text-xs text-cyan-300/80 px-1">
@@ -352,7 +352,7 @@ export function ChatModule({}: ChatModuleProps) {
   );
 }
 
-function MessageBubble({ role, content, t }: { role: string; content: string; t: (k: string) => string }) {
+function MessageBubble({ role, content, ts, t }: { role: string; content: string; ts: number; t: (k: string) => string }) {
   const isUser = role === "user";
   const isSystem = role === "system";
   const [copied, setCopied] = useState(false);
@@ -368,6 +368,7 @@ function MessageBubble({ role, content, t }: { role: string; content: string; t:
   return (
     <div className={cn("flex", isUser ? "justify-end" : "justify-start")}>
       <div
+        title={new Date(ts).toLocaleString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
         className={cn(
           "max-w-[88%] rounded-xl px-3 py-2 text-sm leading-relaxed relative group",
           isUser

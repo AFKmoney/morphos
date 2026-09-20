@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-import { Play, Pause, SkipForward, SkipBack, Heart, Volume2, Music4, Loader2 } from "lucide-react";
+import { Play, Pause, SkipForward, SkipBack, Heart, Volume2, Music4, Loader2, Plus, X } from "lucide-react";
 import { useModulePersist } from "@/lib/module-state-store";
+import { useSettings } from "@/lib/settings-store";
 import { useT } from "@/lib/use-t";
 
 interface Track {
@@ -21,9 +22,15 @@ const TRACKS: Track[] = [
   { title: "Deep Focus", artist: "SoundHelix", url: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-5.mp3", color: "#c084fc" },
 ];
 
+const CUSTOM_COLORS = ["#22d3ee", "#f472b6", "#34d399", "#fbbf24", "#c084fc"];
+
 export function MusicModule() {
   const t = useT();
+  const fr = useSettings((s) => s.language) === "fr";
   const [idx, setIdx] = useModulePersist<number>("music:idx", 0);
+  const [custom, setCustom] = useModulePersist<Track[]>("music:custom", []);
+  const [showAdd, setShowAdd] = useState(false);
+  const [newUrl, setNewUrl] = useState("");
   const [playing, setPlaying] = useState(false);
   const [pos, setPos] = useState(0);
   const [duration, setDuration] = useState(0);
@@ -32,7 +39,8 @@ export function MusicModule() {
   const [liked, setLiked] = useModulePersist<Record<number, boolean>>("music:liked", {});
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const track = TRACKS[idx];
+  const playlist = [...TRACKS, ...custom];
+  const track = playlist[idx % playlist.length] ?? TRACKS[0];
 
   useEffect(() => {
     if (!audioRef.current) {
@@ -48,7 +56,7 @@ export function MusicModule() {
     };
     const onTime = () => setPos(audio.currentTime);
     const onEnded = () => {
-      setIdx((i) => (i + 1) % TRACKS.length);
+      setIdx((i) => (i + 1) % playlist.length);
     };
     const onPlay = () => setPlaying(true);
     const onPause = () => setPlaying(false);
@@ -96,6 +104,22 @@ export function MusicModule() {
     const rect = e.currentTarget.getBoundingClientRect();
     const pct = (e.clientX - rect.left) / rect.width;
     audio.currentTime = pct * duration;
+  }
+
+  function addStream() {
+    const url = newUrl.trim();
+    if (!/^https?:\/\/.+/i.test(url)) return;
+    let title = "Custom stream";
+    try {
+      const seg = new URL(url).pathname.split("/").filter(Boolean).pop() ?? "";
+      const clean = decodeURIComponent(seg).replace(/\.[a-z0-9]+$/i, "").replace(/[-_]+/g, " ").trim();
+      if (clean) title = clean.slice(0, 40);
+    } catch {}
+    const entry: Track = { title, artist: fr ? "Flux perso" : "Custom", url, color: CUSTOM_COLORS[custom.length % CUSTOM_COLORS.length] };
+    setCustom((c) => [...c, entry]);
+    setIdx(TRACKS.length + custom.length);
+    setNewUrl("");
+    setShowAdd(false);
   }
 
   function fmt(s: number) {
@@ -157,7 +181,7 @@ export function MusicModule() {
           className={liked[idx] ? "text-pink-400" : "text-white/40 hover:text-white/80"}>
           <Heart className="w-4 h-4" fill={liked[idx] ? "currentColor" : "none"} />
         </button>
-        <button onClick={() => setIdx((i) => (i - 1 + TRACKS.length) % TRACKS.length)} title={t("common.previous")} className="text-white/60 hover:text-white">
+        <button onClick={() => setIdx((i) => (i - 1 + playlist.length) % playlist.length)} title={t("common.previous")} className="text-white/60 hover:text-white">
           <SkipBack className="w-4 h-4" />
         </button>
         <button onClick={togglePlay}
@@ -166,10 +190,34 @@ export function MusicModule() {
           style={{ background: track.color }}>
           {playing ? <Pause className="w-4 h-4" fill="currentColor" /> : <Play className="w-4 h-4 ml-0.5" fill="currentColor" />}
         </button>
-        <button onClick={() => setIdx((i) => (i + 1) % TRACKS.length)} title={t("common.next")} className="text-white/60 hover:text-white">
+        <button onClick={() => setIdx((i) => (i + 1) % playlist.length)} title={t("common.next")} className="text-white/60 hover:text-white">
           <SkipForward className="w-4 h-4" />
         </button>
       </div>
+
+      {showAdd ? (
+        <div className="flex items-center gap-1.5 px-4 pb-2">
+          <input
+            value={newUrl}
+            onChange={(e) => setNewUrl(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") addStream(); if (e.key === "Escape") setShowAdd(false); }}
+            placeholder={fr ? "Colle un URL MP3… (Entrée pour ajouter)" : "Paste an MP3 URL… (Enter to add)"}
+            spellCheck={false}
+            autoFocus
+            className="flex-1 min-w-0 bg-black/40 border border-white/10 rounded px-2 py-1 text-[10px] font-mono text-white/90 outline-none focus:border-cyan-400/40"
+          />
+          <button onClick={addStream} title={t("common.add")} className="text-[10px] px-2 py-1 rounded bg-cyan-500/20 text-cyan-300 hover:bg-cyan-500/30">
+            {t("common.add")}
+          </button>
+          <button onClick={() => setShowAdd(false)} title={t("common.cancel")} className="text-white/40 hover:text-white">
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      ) : (
+        <button onClick={() => setShowAdd(true)} className="mx-auto mb-1 flex items-center gap-1 text-[10px] text-white/35 hover:text-cyan-300 transition">
+          <Plus className="w-3 h-3" /> {fr ? "Ajouter un flux MP3" : "Add MP3 stream"}
+        </button>
+      )}
 
       <div className="flex items-center gap-2 px-4 pb-3 text-white/40">
         <Volume2 className="w-3 h-3" />
